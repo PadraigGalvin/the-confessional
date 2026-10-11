@@ -61,7 +61,15 @@ function mediaConstraints(cameraId, microphoneId) {
   return {
     video: { deviceId: cameraId && { exact: cameraId }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
     // Nothing plays through the speakers, so echo cancellation would only degrade the audio.
-    audio: { deviceId: microphoneId && { exact: microphoneId }, echoCancellation: false },
+    // Auto gain is off because Chrome implements it by turning up the system mic volume,
+    // which over a weekend ends up maxed out and recording mostly fan noise.
+    // Noise suppression stays on to tame fan hum and party chatter.
+    audio: {
+      deviceId: microphoneId && { exact: microphoneId },
+      echoCancellation: false,
+      autoGainControl: false,
+      noiseSuppression: true,
+    },
   };
 }
 

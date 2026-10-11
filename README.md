@@ -80,6 +80,11 @@ This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings
 
 ## Before the party
 
+- Set the mic level. Open the input settings: on Ubuntu, Settings → Sound → Input; on Windows, Settings → System → Sound → Input.
+  - With nobody talking, the level meter should stay low. If fan or room noise alone fills it, turn the input volume down.
+  - Then talk from where guests will stand. The meter should move clearly with your voice.
+  - The booth never changes this level itself.
+- If you can, use an external USB mic or a webcam with a built-in mic. A laptop's internal mic sits right next to the fan.
 - Do a full test session, then play the clips back with sound.
 - Turn off screen blanking, sleep and automatic updates/restarts, and keep the computer plugged in.
 - Check free disk space. Plan for about 1.2 GB per hour of answers.
@@ -89,5 +94,6 @@ This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings
 ## Troubleshooting
 
 - **"The camera is being used by another app"**: close Zoom, Teams, OBS and similar apps, then press Try again.
+- **Recordings are mostly hiss, or voices are faint or missing**: the system mic level is wrong, usually far too high, so noise drowns out the voice. Set it as described under "Before the party".
 - **Wrong camera or microphone**: set `cameraName` or `microphoneName` in `config.json`, then press F5 in the booth window to reload it.
 - **"Something is already running at http://127.0.0.1:3000"**: the booth (or something else) is already using that port. Close the other booth window, or change `port`.
