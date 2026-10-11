@@ -5,61 +5,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Confession booth</title>
   <link rel="icon" href="data:,">
-  <link rel="preload" href="/fonts/grenze-gotisch-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/fonts/grenze-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/barlow-condensed-800-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/barlow-600-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <main class="booth" data-state="loading">
-    <figure class="window">
-      <video id="preview" autoplay muted playsinline aria-label="Live camera preview"></video>
-      <div class="grille" aria-hidden="true"></div>
-      <p class="rec" id="rec-badge" hidden><span class="rec-dot" aria-hidden="true"></span>REC</p>
-    </figure>
+    <video class="preview" id="preview" autoplay muted playsinline aria-label="Live camera preview"></video>
+    <canvas class="preview" id="freeze-frame" hidden aria-hidden="true"></canvas>
+    <div class="shade shade-top" aria-hidden="true"></div>
+    <div class="shade shade-bottom" aria-hidden="true"></div>
 
-    <section class="panel" id="screen-loading">
-      <p class="lede">Waking up the camera…</p>
+    <p class="bug"><span class="rec" id="rec-badge" hidden><span class="rec-dot" aria-hidden="true"></span>Rec<span class="bug-divider" aria-hidden="true"></span></span><span id="show-title"></span></p>
+
+    <!-- The name tag stays on screen from the countdown to the last question. -->
+    <div class="lower-third" id="lower-third" aria-hidden="true">
+      <p class="lower-name" id="lower-name"></p>
+      <p class="lower-tagline" id="lower-tagline"></p>
+    </div>
+
+    <section class="screen" id="screen-loading">
+      <div class="strip">
+        <p class="label">Stand by</p>
+        <p class="strip-text">Waking up the camera…</p>
+      </div>
     </section>
 
-    <section class="panel" id="screen-start" hidden>
-      <h1 class="display">Who's confessing?</h1>
+    <section class="screen" id="screen-start" hidden>
+      <div class="strip">
+        <h1 class="title">Who's in the hot seat?</h1>
+        <p class="note" id="start-note"></p>
+      </div>
       <form id="start-form" autocomplete="off">
-        <label class="field-label" for="name">Your name, or everyone's names if you're in a group</label>
-        <input class="field" id="name" name="name" maxlength="80" required placeholder="Sam &amp; Alex" enterkeyhint="go" spellcheck="false">
-        <button type="submit" class="button" id="start-button">Begin confession</button>
+        <div class="lower-third is-form">
+          <p class="label" aria-hidden="true">Your name, plus a tagline if you want one</p>
+          <input class="lower-name" id="name" name="name" maxlength="80" required placeholder="Your name" aria-label="Your name, or everyone's names if you're in a group" enterkeyhint="next" spellcheck="false">
+          <input class="lower-tagline" id="tagline" name="tagline" maxlength="80" placeholder="Your tagline" aria-label="Your tagline (optional)" enterkeyhint="go" spellcheck="false">
+        </div>
+        <button type="submit" class="pill" id="start-button">Roll camera <kbd>Enter</kbd></button>
       </form>
-      <p class="small" id="start-note"></p>
     </section>
 
-    <section class="panel" id="screen-countdown" hidden>
-      <p class="lede" id="countdown-greeting"></p>
+    <section class="screen" id="screen-countdown" hidden>
+      <div class="strip">
+        <p class="label">Rolling in</p>
+        <p class="strip-text">Look at the webcam, just above the screen.</p>
+      </div>
       <p class="numeral" id="countdown-number" aria-live="assertive"></p>
     </section>
 
-    <section class="panel" id="screen-question" hidden>
-      <p class="progress" id="question-progress"></p>
-      <h2 class="question" id="question-text" aria-live="polite"></h2>
-      <div class="timer">
-        <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
-        <span class="timer-label" id="timer-label"></span>
+    <section class="screen" id="screen-question" hidden>
+      <div class="strip">
+        <p class="label" id="question-progress"></p>
+        <h2 class="strip-text" id="question-text" aria-live="polite"></h2>
       </div>
       <div class="actions">
-        <button type="button" class="button" id="next-button">Next question</button>
-        <span class="hint">or press the space bar</span>
+        <span class="timer-label" id="timer-label"></span>
+        <button type="button" class="pill" id="next-button"><span id="next-label">Next question</span> <kbd>Space</kbd></button>
+      </div>
+      <div class="timer-track" aria-hidden="true"><div class="timer-fill" id="timer-fill"></div></div>
+    </section>
+
+    <section class="screen" id="screen-thanks" hidden>
+      <div class="wrap">
+        <h1 class="wrap-title" id="thanks-title"></h1>
+        <p class="wrap-note" id="thanks-note"></p>
       </div>
     </section>
 
-    <section class="panel" id="screen-thanks" hidden>
-      <h1 class="display" id="thanks-title"></h1>
-      <p class="lede">Your confession has been saved.</p>
-      <p class="small" id="thanks-reset"></p>
-    </section>
-
-    <section class="panel" id="screen-error" hidden>
-      <h1 class="display">Hold on.</h1>
-      <p class="lede" id="error-message"></p>
-      <button type="button" class="button" id="retry-button">Try again</button>
+    <section class="screen" id="screen-error" hidden>
+      <div class="strip">
+        <p class="label">Technical difficulties</p>
+        <p class="strip-text" id="error-message"></p>
+      </div>
+      <div class="actions">
+        <button type="button" class="pill" id="retry-button">Try again</button>
+      </div>
     </section>
   </main>
 </body>

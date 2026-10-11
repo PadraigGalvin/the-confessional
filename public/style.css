@@ -1,344 +1,430 @@
 /* Fonts are bundled so the booth works without internet at the venue. */
 @font-face {
-  font-family: "Grenze Gotisch";
-  src: url("fonts/grenze-gotisch-latin.woff2") format("woff2");
-  font-weight: 500 800;
+  font-family: "Barlow";
+  src: url("fonts/barlow-500-latin.woff2") format("woff2");
+  font-weight: 500;
   font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Grenze Gotisch";
-  src: url("fonts/grenze-gotisch-latin-ext.woff2") format("woff2");
-  font-weight: 500 800;
+  font-family: "Barlow";
+  src: url("fonts/barlow-500-latin-ext.woff2") format("woff2");
+  font-weight: 500;
   font-display: swap;
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: "Grenze";
-  src: url("fonts/grenze-latin.woff2") format("woff2");
-  font-weight: 100 900;
+  font-family: "Barlow";
+  src: url("fonts/barlow-600-latin.woff2") format("woff2");
+  font-weight: 600;
   font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Grenze";
-  src: url("fonts/grenze-latin-ext.woff2") format("woff2");
-  font-weight: 100 900;
+  font-family: "Barlow";
+  src: url("fonts/barlow-600-latin-ext.woff2") format("woff2");
+  font-weight: 600;
   font-display: swap;
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: "Grenze";
-  src: url("fonts/grenze-italic-latin.woff2") format("woff2");
-  font-style: italic;
-  font-weight: 400;
+  font-family: "Barlow Condensed";
+  src: url("fonts/barlow-condensed-700-latin.woff2") format("woff2");
+  font-weight: 700;
   font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Grenze";
-  src: url("fonts/grenze-italic-latin-ext.woff2") format("woff2");
-  font-style: italic;
-  font-weight: 400;
+  font-family: "Barlow Condensed";
+  src: url("fonts/barlow-condensed-700-latin-ext.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("fonts/barlow-condensed-800-latin.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("fonts/barlow-condensed-800-latin-ext.woff2") format("woff2");
+  font-weight: 800;
   font-display: swap;
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* A reality TV talking head: the guest fills the screen like the finished episode,
+   with the question in a strip under the webcam and a name tag in the lower third. */
 :root {
-  --velvet: #5a1222;
-  --velvet-fold: #3d0a16;
-  --velvet-deep: #1f050b;
-  --gilt: #d9ae5a;
-  --gilt-dim: #8a6a2f;
-  --parchment: #f3e6cb;
-  --parchment-dim: #c9b48f;
+  --pink: #ff2f7d;
+  --ink: #121014;
+  --paper: #fff;
+  --paper-dim: rgb(255 255 255 / 0.8);
   --rec: #ff3b30;
-  --font-display: "Grenze Gotisch", "Old English Text MT", Georgia, serif;
-  --font-text: "Grenze", Georgia, "Times New Roman", serif;
+  --font-text: "Barlow", "Arial Narrow", Arial, sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  /* 1% of the screen width, with a floor so small windows stay readable. */
+  --u: max(1vw, 6px);
   color-scheme: dark;
 }
 
 [hidden] { display: none !important; }
 
+html, body { height: 100%; }
+
 body {
   margin: 0;
-  min-height: 100dvh;
-  color: var(--parchment);
+  overflow: hidden;
+  background: #000;
+  color: var(--paper);
   font-family: var(--font-text);
-  background-color: var(--velvet-deep);
-  /* A velvet curtain: a spotlight on the window, a vignette, and two out-of-step fold patterns. */
-  background-image:
-    radial-gradient(ellipse 45% 65% at 28% 50%, rgb(255 210 140 / 0.12), transparent 70%),
-    radial-gradient(ellipse at center, transparent 45%, rgb(0 0 0 / 0.6) 100%),
-    repeating-linear-gradient(90deg, transparent 0, rgb(0 0 0 / 0.22) 5vw, transparent 11vw),
-    repeating-linear-gradient(90deg, var(--velvet-deep) 0, var(--velvet) 2.6vw, var(--velvet-fold) 4.4vw, var(--velvet-deep) 6vw);
 }
 
 .booth {
-  box-sizing: border-box;
-  min-height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  align-items: center;
-  gap: clamp(2rem, 5vw, 6rem);
-  padding: clamp(1.5rem, 4vh, 4rem) clamp(1.5rem, 6vw, 7rem);
-}
-
-/* --- The window: a gilded arch holding the live camera, behind a confessional grille --- */
-
-.window {
   position: relative;
-  justify-self: end;
-  width: min(100%, calc((100dvh - 9rem) * 0.75));
-  aspect-ratio: 3 / 4;
-  margin: 0.75rem;
+  height: 100dvh;
   overflow: hidden;
-  /* Horizontal radius 50% of width = vertical 37.5% of height at 3:4, giving a true semicircular arch. */
-  border-radius: 50% 50% 1.25rem 1.25rem / 37.5% 37.5% 1.25rem 1.25rem;
-  border: 0.5rem solid var(--gilt);
-  background: #000;
-  box-shadow:
-    0 0 0 0.6rem var(--velvet-deep),
-    0 0 0 0.75rem var(--gilt-dim),
-    0 2rem 5rem rgb(0 0 0 / 0.65);
 }
 
-.window video {
-  display: block;
+/* --- The camera, full screen. `contain` shows the whole recorded frame, never a crop. --- */
+
+.preview {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transform: scaleX(-1); /* mirror the preview only; the recording is not flipped */
 }
 
-.grille {
+#freeze-frame { filter: grayscale(0.45) contrast(1.08) brightness(0.92); }
+
+.shade {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.shade-top {
+  top: 0;
+  height: calc(26 * var(--u));
+  background: linear-gradient(rgb(8 6 12 / 0.8), rgb(8 6 12 / 0.35) 60%, transparent);
+}
+.shade-bottom {
+  bottom: 0;
+  height: calc(24 * var(--u));
+  background: linear-gradient(transparent, rgb(8 6 12 / 0.65));
+}
+.booth[data-state="thanks"] .shade-top { display: none; }
+.booth[data-state="thanks"] .shade-bottom {
+  height: 100%;
   background:
-    repeating-linear-gradient(45deg, transparent 0 1.7rem, rgb(31 5 11 / 0.92) 1.7rem 2.1rem),
-    repeating-linear-gradient(-45deg, transparent 0 1.7rem, rgb(31 5 11 / 0.92) 1.7rem 2.1rem);
-  box-shadow: inset 0 0 3rem rgb(0 0 0 / 0.75);
-  transition: transform 900ms cubic-bezier(0.7, 0, 0.2, 1);
+    linear-gradient(90deg, rgb(8 6 12 / 0.7), transparent 70%),
+    linear-gradient(transparent 40%, rgb(8 6 12 / 0.6));
 }
 
-.booth.is-open .grille {
-  transform: translateY(-100%);
-}
+/* --- The channel bug, top right --- */
 
-.rec {
+.bug {
   position: absolute;
-  left: 50%;
-  bottom: 1.25rem;
-  translate: -50% 0;
+  top: calc(4 * var(--u));
+  right: calc(4.5 * var(--u));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(1.4 * var(--u));
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+.rec {
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
-  margin: 0;
-  padding: 0.3em 0.9em 0.35em 0.75em;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 0.6);
-  font-weight: 600;
-  font-size: 1.15rem;
-  letter-spacing: 0.08em;
+  gap: calc(0.7 * var(--u));
+  color: var(--paper);
 }
-
 .rec-dot {
-  width: 0.75em;
-  height: 0.75em;
+  width: 0.65em;
+  height: 0.65em;
   border-radius: 50%;
   background: var(--rec);
   animation: rec-pulse 1.4s ease-in-out infinite;
+}
+.bug-divider {
+  width: calc(0.15 * var(--u));
+  height: calc(1.6 * var(--u));
+  margin-inline: calc(1.1 * var(--u));
+  background: rgb(255 255 255 / 0.5);
 }
 
 @keyframes rec-pulse {
   50% { opacity: 0.25; }
 }
 
-/* --- Panels --- */
+/* --- Screens: each one is a full-screen layer over the camera --- */
 
-.panel {
-  max-width: 44rem;
+.screen {
+  position: absolute;
+  inset: 0;
 }
 
-.display {
-  margin: 0 0 0.45em;
+.strip {
+  position: absolute;
+  top: calc(4 * var(--u));
+  left: calc(5 * var(--u));
+  width: calc(62 * var(--u));
+  display: grid;
+  gap: calc(1 * var(--u));
+}
+
+.label {
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(3.25rem, 7.5vw, 7.5rem);
-  line-height: 0.95;
-  color: var(--gilt);
-  text-shadow: 0 0.04em 0 var(--velvet-deep);
+  font-size: calc(1.4 * var(--u));
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pink);
 }
 
-.lede {
-  margin: 0 0 1em;
-  font-size: clamp(1.4rem, 2.4vw, 2.1rem);
-  line-height: 1.3;
-}
-
-.small {
-  max-width: 38ch;
-  margin: 2rem 0 0;
-  font-size: clamp(1.05rem, 1.4vw, 1.3rem);
-  line-height: 1.45;
-  color: var(--parchment-dim);
-}
-
-.field-label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-size: clamp(1.1rem, 1.5vw, 1.35rem);
-  color: var(--parchment-dim);
-}
-
-.field {
-  box-sizing: border-box;
-  display: block;
-  width: 100%;
-  margin: 0 0 1.75rem;
-  padding: 0.15em 0 0.2em;
-  border: 0;
-  border-bottom: 3px solid var(--gilt-dim);
-  background: transparent;
-  color: var(--parchment);
-  caret-color: var(--gilt);
-  font: inherit;
-  font-weight: 500;
-  font-size: clamp(2rem, 3.6vw, 3.25rem);
-}
-
-.field::placeholder {
-  color: rgb(243 230 203 / 0.3);
-}
-
-.field:focus {
-  outline: none;
-  border-bottom-color: var(--gilt);
-  box-shadow: 0 3px 0 var(--gilt);
-}
-
-.button {
-  padding: 0.4em 1.1em 0.5em;
-  border: 0;
-  border-radius: 0.4rem;
-  background: var(--gilt);
-  color: var(--velvet-deep);
-  font-family: var(--font-text);
+.strip-text {
+  margin: 0;
   font-weight: 600;
-  font-size: clamp(1.4rem, 2.2vw, 2rem);
-  cursor: pointer;
-  box-shadow: 0 0.25rem 0 var(--gilt-dim), 0 0.8rem 1.6rem rgb(0 0 0 / 0.35);
+  font-size: calc(3.5 * var(--u));
+  line-height: 1.12;
+  text-wrap: balance;
+  text-shadow: 0 calc(0.2 * var(--u)) calc(1 * var(--u)) rgb(0 0 0 / 0.5);
 }
 
-.button:active {
-  translate: 0 0.2rem;
-  box-shadow: 0 0.05rem 0 var(--gilt-dim), 0 0.4rem 1rem rgb(0 0 0 / 0.35);
-}
-
-.button:focus-visible {
-  outline: 3px solid var(--parchment);
-  outline-offset: 4px;
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-/* Countdown */
-
-.numeral {
+.title {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(12rem, 52vh, 32rem);
-  line-height: 0.8;
-  color: var(--gilt);
-  text-shadow: 0 0.03em 0 var(--velvet-deep);
+  font-size: calc(6.2 * var(--u));
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-shadow: 0 calc(0.2 * var(--u)) calc(1 * var(--u)) rgb(0 0 0 / 0.5);
 }
 
-/* Question */
-
-.progress {
-  margin: 0 0 0.75rem;
-  font-style: italic;
-  font-size: clamp(1.25rem, 2vw, 1.75rem);
-  color: var(--gilt);
-}
-
-.question {
-  max-width: 22ch;
-  margin: 0 0 2.5rem;
+.note {
+  max-width: 46ch;
+  margin: calc(0.4 * var(--u)) 0 0;
   font-weight: 500;
-  font-size: clamp(2.2rem, 4.4vw, 4.6rem);
-  line-height: 1.12;
-  text-wrap: balance;
+  font-size: calc(1.6 * var(--u));
+  line-height: 1.35;
+  color: var(--paper-dim);
 }
 
-.timer {
+/* --- Lower third: the name tag. On the start screen it's the form itself. --- */
+
+.lower-third {
+  position: absolute;
+  left: calc(5 * var(--u));
+  bottom: calc(7.5 * var(--u));
+  z-index: 1;
+  display: none;
+  justify-items: start;
+  max-width: calc(58 * var(--u));
+}
+.lower-third.is-form,
+.booth[data-state="countdown"] #lower-third,
+.booth[data-state="question"] #lower-third {
+  display: grid;
+}
+.lower-third .label { margin-bottom: calc(1.1 * var(--u)); }
+
+.lower-name {
+  max-width: 100%;
+  margin: 0;
+  padding: calc(0.5 * var(--u)) calc(1.6 * var(--u)) calc(0.35 * var(--u));
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(5.2 * var(--u));
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.lower-tagline {
+  max-width: calc(100% - 1.6 * var(--u));
+  margin: 0 0 0 calc(1.6 * var(--u));
+  padding: calc(0.7 * var(--u)) calc(1.6 * var(--u));
+  background: var(--pink);
+  color: var(--paper);
+  font-family: var(--font-text);
+  font-weight: 600;
+  font-size: calc(1.9 * var(--u));
+  line-height: 1.1;
+}
+p.lower-tagline:empty { display: none; }
+
+input.lower-name,
+input.lower-tagline {
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  field-sizing: content; /* the name tag grows as you type; the max-widths above stop it overflowing */
+  width: auto;
+}
+input.lower-name {
+  min-inline-size: 6ch;
+  caret-color: var(--pink);
+}
+input.lower-tagline {
+  min-inline-size: 16ch;
+  caret-color: var(--paper);
+}
+input.lower-name::placeholder { color: rgb(18 16 20 / 0.35); }
+input.lower-tagline::placeholder { color: rgb(255 255 255 / 0.72); }
+/* A bar along the bottom of whichever field you're typing in. */
+input.lower-name:focus { box-shadow: inset 0 calc(-0.4 * var(--u)) 0 var(--pink); }
+input.lower-tagline:focus { box-shadow: inset 0 calc(-0.3 * var(--u)) 0 rgb(255 255 255 / 0.85); }
+
+@supports not (field-sizing: content) {
+  input.lower-name { width: 14ch; }
+  input.lower-tagline { width: 40ch; }
+}
+
+/* --- Buttons and the timer, bottom right --- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(1 * var(--u));
+  padding: calc(0.8 * var(--u)) calc(1.8 * var(--u));
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.94);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-weight: 600;
+  font-size: calc(1.5 * var(--u));
+  line-height: 1;
+  cursor: pointer;
+}
+.pill:hover { background: var(--paper); }
+.pill:active { translate: 0 calc(0.15 * var(--u)); }
+.pill:focus-visible { outline: calc(0.25 * var(--u)) solid var(--pink); outline-offset: calc(0.3 * var(--u)); }
+.pill:disabled { opacity: 0.6; cursor: progress; }
+.pill kbd {
+  padding: 0.2em 0.45em;
+  border-radius: 0.3em;
+  background: rgb(18 16 20 / 0.1);
+  color: rgb(18 16 20 / 0.7);
+  font: inherit;
+  font-size: 0.75em;
+}
+
+#start-button,
+.actions {
+  position: absolute;
+  right: calc(4.5 * var(--u));
+  bottom: calc(7.5 * var(--u));
+}
+.actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  max-width: 36rem;
-  margin-bottom: 2.5rem;
-}
-
-.timer-track {
-  flex: 1;
-  height: 0.5rem;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 0.4);
-}
-
-.timer-fill {
-  height: 100%;
-  background: var(--gilt);
-  transform-origin: left center;
+  gap: calc(1.2 * var(--u));
 }
 
 .timer-label {
-  min-width: 6ch;
-  font-size: 1.25rem;
+  padding: 0.3em 0;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: calc(1.5 * var(--u));
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--parchment-dim);
+  color: var(--paper-dim);
+}
+.is-hurry .timer-label {
+  padding-inline: 0.7em;
+  background: var(--pink);
+  color: var(--paper);
 }
 
-.is-hurry .timer-fill { background: var(--rec); }
-.is-hurry .timer-label { color: var(--parchment); }
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1.25rem;
+.timer-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(0.6 * var(--u));
+  background: rgb(255 255 255 / 0.2);
+}
+.timer-fill {
+  height: 100%;
+  background: var(--pink);
+  transform-origin: left center;
 }
 
-.hint {
-  font-style: italic;
-  font-size: 1.15rem;
-  color: var(--parchment-dim);
+/* --- Countdown --- */
+
+.numeral {
+  position: absolute;
+  right: calc(8 * var(--u));
+  top: 50%;
+  translate: 0 -50%;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(24 * var(--u));
+  line-height: 0.8;
+  font-variant-numeric: tabular-nums;
+  text-shadow: calc(0.7 * var(--u)) calc(0.7 * var(--u)) 0 var(--pink);
 }
 
-/* --- Portrait screens and narrow windows: stack the window above the panel --- */
+/* --- Wrap: a freeze frame of the guest's last second --- */
 
-@media (max-width: 760px), (orientation: portrait) {
-  .booth {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    align-content: center;
-  }
-  .window {
-    justify-self: center;
-    width: min(72vw, calc(42dvh * 0.75));
-  }
-  .panel {
-    width: 100%;
-  }
+#screen-thanks { box-shadow: inset 0 0 0 calc(0.5 * var(--u)) rgb(255 255 255 / 0.85); }
+
+.wrap {
+  position: absolute;
+  left: calc(5 * var(--u));
+  bottom: calc(8 * var(--u));
+  display: grid;
+  justify-items: start;
+  gap: calc(1.2 * var(--u));
+  max-width: calc(70 * var(--u));
+}
+.wrap-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(8 * var(--u));
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+.wrap-title mark {
+  padding: 0 calc(1 * var(--u));
+  background: var(--pink);
+  color: var(--paper);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.wrap-note {
+  margin: 0;
+  font-weight: 600;
+  font-size: calc(1.8 * var(--u));
+  color: var(--paper-dim);
+}
+
+/* --- Portrait screens: let the question use the full width --- */
+
+@media (orientation: portrait) {
+  .strip { right: calc(5 * var(--u)); width: auto; }
+  .lower-third { max-width: calc(90 * var(--u)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .grille { transition: opacity 300ms; }
-  .booth.is-open .grille { transform: none; opacity: 0; }
   .rec-dot { animation: none; }
 }

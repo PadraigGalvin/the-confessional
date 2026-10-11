@@ -32,7 +32,8 @@ const MAX_CHUNK_BYTES = 64 * 1024 * 1024;
 const MAX_JSON_BYTES = 64 * 1024;
 const END_REASONS = new Set(['next', 'timer', 'escape']);
 const SESSION_STATUSES = new Set(['completed', 'ended-early']);
-const CSV_COLUMNS = ['session_folder', 'name', 'question_number', 'question', 'file', 'duration_sec', 'ended_by', 'recorded_at'];
+// tagline is last so rows still line up with an index.csv started before it existed.
+const CSV_COLUMNS = ['session_folder', 'name', 'question_number', 'question', 'file', 'duration_sec', 'ended_by', 'recorded_at', 'tagline'];
 
 const STATIC_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -161,7 +162,7 @@ function appendToIndex(recordingsDir, session) {
     .filter((clip) => clip.file)
     .map((clip) => [
       session.dirName, session.data.name, clip.index, clip.question, `${session.dirName}/${clip.file}`,
-      clip.durationSec, clip.endedBy, clip.startedAt,
+      clip.durationSec, clip.endedBy, clip.startedAt, session.data.tagline,
     ].map(csvField).join(','));
   if (rows.length === 0) return Promise.resolve();
 
@@ -254,11 +255,12 @@ async function handleApi(req, res, parts, url, recordingsDir) {
 
   if (req.method !== 'POST' || resource !== 'session') throw new HttpError(404, 'Not found');
 
-  // POST /api/session  { name }
+  // POST /api/session  { name, tagline? }
   if (parts.length === 1) {
-    const { name: rawName } = await readJson(req);
+    const { name: rawName, tagline: rawTagline } = await readJson(req);
     const name = String(rawName ?? '').trim().slice(0, 80);
     if (!name) throw new HttpError(400, 'Name is required');
+    const tagline = String(rawTagline ?? '').trim().slice(0, 80);
 
     const cfg = loadConfig();
     const questions = pickRandom(readQuestions(cfg.birthdayName), cfg.questionsPerSession);
@@ -272,6 +274,7 @@ async function handleApi(req, res, parts, url, recordingsDir) {
       queue: Promise.resolve(),
       data: {
         name,
+        tagline,
         startedAt: new Date().toISOString(),
         endedAt: null,
         status: 'in-progress',

@@ -1,6 +1,6 @@
 # Confession booth
 
-A webcam confession booth for a birthday weekend. Guests type their names, then answer a few random questions on camera. Each answer is saved as its own video clip, with a record of who answered what, ready to cut into a compilation afterwards.
+A webcam confession booth for a birthday weekend, styled like a reality TV talking head. Guests type their names, then answer a few random questions on camera. They see themselves full screen with a name tag in the lower third, and each question appears at the top, just under the webcam. Each answer is saved as its own video clip, with a record of who answered what, ready to cut into a compilation afterwards.
 
 It runs on one computer (Linux or Windows): a small Node server writes the recordings to disk, and Chrome shows the booth full-screen.
 
@@ -24,10 +24,10 @@ To run just the server, use `npm start` and open http://localhost:3000 in Chrome
 
 ## How guests use it
 
-1. Type a name (or a few names) and press Enter.
+1. Type a name (or a few names) and press Enter. Then add a one-line tagline for the name tag, such as "Jo's oldest friend, allegedly", or leave it blank. Press Enter again or click **Roll camera**.
 2. After a 3-2-1 countdown, the first question appears and recording starts.
 3. Click **Next question**, or press Space, Enter or →. Each question also moves on by itself after `maxSecondsPerQuestion`.
-4. After the last question, a thank-you screen shows and the booth resets for the next guest.
+4. After the last question, a "That's a wrap" screen holds a freeze frame of the guest's last second, then the booth resets for the next guest.
 
 **Esc** ends the session early, which is handy if someone starts by accident.
 
@@ -37,11 +37,11 @@ Edit `config.json`:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `birthdayName` | `"the birthday person"` | Replaces `{birthday}` in the questions |
+| `birthdayName` | `"the birthday person"` | Replaces `{birthday}` in the questions, and shows in the top corner as "Jo · The Weekend" |
 | `questionsPerSession` | `5` | Questions per guest, picked at random from `questions.txt` |
 | `maxSecondsPerQuestion` | `90` | Time limit per question before it moves on by itself |
 | `countdownSeconds` | `3` | Countdown before the first question |
-| `thankYouSeconds` | `10` | How long the thank-you screen stays up |
+| `thankYouSeconds` | `10` | How long the "That's a wrap" screen stays up |
 | `videoBitsPerSecond` | `2500000` | Video quality. 2.5 Mbps is about 1.2 GB per hour of footage |
 | `cameraName` / `microphoneName` | `""` | Part of a device name to use instead of the system default, e.g. `"C920"` |
 | `host` / `port` | `127.0.0.1` / `3000` | Where the server listens |
@@ -59,14 +59,14 @@ To find device names for `cameraName`/`microphoneName`, open http://localhost:30
 recordings/
   index.csv                                   one row per clip, across all sessions
   2026-10-11_14-23-05_sam-and-alex/
-    session.json                              names, questions, timings
+    session.json                              names, tagline, questions, timings
     01-describe-the-birthday-person-in-three.mp4
     02-whats-the-worst-gift-youve-ever-given.mp4
     ...
 ```
 
-- **`session.json`** records each question with its start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
-- **`index.csv`** opens in Excel or a spreadsheet app. Sort it by question to build "everyone answers X" montages.
+- **`session.json`** records the names and tagline, plus each question with its start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
+- **`index.csv`** opens in Excel or a spreadsheet app. Sort it by question to build "everyone answers X" montages. The `tagline` column has what each guest typed for their name tag, ready for lower thirds in the edit.
 
 Video is uploaded in 2-second chunks while recording. If the browser or computer crashes, you lose at most the last couple of seconds.
 

@@ -180,8 +180,8 @@ function startClip(sessionId, clipNumber) {
 
 // --- Session flow ---
 
-async function beginSession(name) {
-  const data = await postJson('/api/session', { name });
+async function beginSession(name, tagline) {
+  const data = await postJson('/api/session', { name, tagline });
   settings = data.settings;
   session = {
     id: data.sessionId,
@@ -195,15 +195,15 @@ async function beginSession(name) {
     timerTimeout: null,
     ending: false,
   };
-  booth.classList.add('is-open');
-  await runCountdown(settings.countdownSeconds, name);
+  $('lower-name').textContent = name;
+  $('lower-tagline').textContent = tagline;
+  await runCountdown(settings.countdownSeconds);
   if (session.ending) return; // the camera failed during the countdown
   showQuestion(0);
 }
 
-async function runCountdown(seconds, name) {
+async function runCountdown(seconds) {
   if (seconds <= 0) return;
-  $('countdown-greeting').textContent = `Get ready, ${name}.`;
   show('countdown');
   const numeral = $('countdown-number');
   for (let n = seconds; n > 0; n--) {
@@ -224,7 +224,7 @@ function showQuestion(index) {
   session.questionShownAt = performance.now();
   $('question-progress').textContent = `Question ${index + 1} of ${questions.length}`;
   $('question-text').textContent = questions[index];
-  $('next-button').textContent = index === questions.length - 1 ? 'Finish' : 'Next question';
+  $('next-label').textContent = index === questions.length - 1 ? 'Finish' : 'Next question';
   show('question');
   $('rec-badge').hidden = false;
   session.clip = startClip(session.id, index + 1);
@@ -278,15 +278,30 @@ async function finalizeSession(current, status) {
     .catch((err) => console.error('Could not finish session:', err.message));
 }
 
+// Hold the guest's last second on screen, like the end of a reality TV segment.
+function freezeFrame() {
+  const video = $('preview');
+  const canvas = $('freeze-frame');
+  if (!video.videoWidth) return;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.hidden = false;
+}
+
 async function endSession(status) {
   session.ending = true;
   $('rec-badge').hidden = true;
   const finalized = finalizeSession(session, status);
 
-  $('thanks-title').textContent = `Bless you, ${session.name}.`;
+  freezeFrame();
+  const name = document.createElement('mark');
+  name.textContent = `${session.name}.`;
+  $('thanks-title').replaceChildren("That's a wrap,", document.createElement('br'), name);
+  const answered = session.index + 1;
   show('thanks');
   for (let left = settings.thankYouSeconds; left > 0; left--) {
-    $('thanks-reset').textContent = `The booth resets in ${left} second${left === 1 ? '' : 's'}.`;
+    $('thanks-note').textContent = `${answered} answer${answered === 1 ? '' : 's'} saved · next guest in ${left}`;
     await sleep(1000);
   }
   await finalized;
@@ -308,13 +323,20 @@ function fail(message) {
 
 // --- Wiring ---
 
+// Enter after the name moves on to the tagline; Enter there (or the button) rolls the camera.
+$('name').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || !$('name').value.trim()) return;
+  event.preventDefault();
+  $('tagline').focus();
+});
+
 $('start-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = $('name').value.trim();
   if (!name) return;
   $('start-button').disabled = true;
   try {
-    await beginSession(name);
+    await beginSession(name, $('tagline').value.trim());
   } catch (err) {
     console.error('Could not start session:', err);
     fail("The booth couldn't start a session. Check the booth server is running, then try again.");
@@ -356,6 +378,9 @@ async function init() {
     console.error('getUserMedia failed:', err);
     return fail(cameraErrorMessage(err));
   }
+
+  $('show-title').textContent = `${settings.birthdayName} · The Weekend`;
+  $('tagline').placeholder = `Your tagline, like “${settings.birthdayName}'s oldest friend, allegedly”`;
 
   const { questionsPerSession: count, maxSecondsPerQuestion: seconds } = settings;
   $('start-note').textContent =
