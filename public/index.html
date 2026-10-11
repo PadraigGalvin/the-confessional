@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confession booth</title>
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="/fonts/grenze-gotisch-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/grenze-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main class="booth" data-state="loading">
+    <figure class="window">
+      <video id="preview" autoplay muted playsinline aria-label="Live camera preview"></video>
+      <div class="grille" aria-hidden="true"></div>
+      <p class="rec" id="rec-badge" hidden><span class="rec-dot" aria-hidden="true"></span>REC</p>
+    </figure>
+
+    <section class="panel" id="screen-loading">
+      <p class="lede">Waking up the camera…</p>
+    </section>
+
+    <section class="panel" id="screen-start" hidden>
+      <h1 class="display">Who's confessing?</h1>
+      <form id="start-form" autocomplete="off">
+        <label class="field-label" for="name">Your name, or everyone's names if you're in a group</label>
+        <input class="field" id="name" name="name" maxlength="80" required placeholder="Sam &amp; Alex" enterkeyhint="go" spellcheck="false">
+        <button type="submit" class="button" id="start-button">Begin confession</button>
+      </form>
+      <p class="small" id="start-note"></p>
+    </section>
+
+    <section class="panel" id="screen-countdown" hidden>
+      <p class="lede" id="countdown-greeting"></p>
+      <p class="numeral" id="countdown-number" aria-live="assertive"></p>
+    </section>
+
+    <section class="panel" id="screen-question" hidden>
+      <p class="progress" id="question-progress"></p>
+      <h2 class="question" id="question-text" aria-live="polite"></h2>
+      <div class="timer">
+        <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+        <span class="timer-label" id="timer-label"></span>
+      </div>
+      <div class="actions">
+        <button type="button" class="button" id="next-button">Next question</button>
+        <span class="hint">or press the space bar</span>
+      </div>
+    </section>
+
+    <section class="panel" id="screen-thanks" hidden>
+      <h1 class="display" id="thanks-title"></h1>
+      <p class="lede">Your confession has been saved.</p>
+      <p class="small" id="thanks-reset"></p>
+    </section>
+
+    <section class="panel" id="screen-error" hidden>
+      <h1 class="display">Hold on.</h1>
+      <p class="lede" id="error-message"></p>
+      <button type="button" class="button" id="retry-button">Try again</button>
+    </section>
+  </main>
+</body>
+</html>

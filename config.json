@@ -1,0 +1,13 @@
+{
+  "birthdayName": "the birthday person",
+  "questionsPerSession": 5,
+  "maxSecondsPerQuestion": 90,
+  "countdownSeconds": 3,
+  "thankYouSeconds": 10,
+  "videoBitsPerSecond": 2500000,
+  "cameraName": "",
+  "microphoneName": "",
+  "host": "127.0.0.1",
+  "port": 3000,
+  "recordingsDir": "recordings"
+}

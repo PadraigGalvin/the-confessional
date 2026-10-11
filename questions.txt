@@ -1,0 +1,31 @@
+# One question per line. Blank lines and lines starting with # are ignored.
+# {birthday} is replaced with "birthdayName" from config.json.
+# This file is re-read for every new session, so you can edit it while the booth is running.
+
+How do you know {birthday}, and what was your first impression?
+What's the most embarrassing thing you've ever seen {birthday} do?
+Confess: what's a secret you've never told {birthday}?
+Describe {birthday} in three words. Now justify them.
+Give {birthday} one piece of terrible advice for the year ahead.
+Tell us a story about {birthday} that they'd rather we didn't hear.
+Do your best impression of {birthday}.
+Which song should play every time {birthday} walks into a room?
+If you and {birthday} robbed a bank, who drives the getaway car and who gets caught first?
+What will {birthday} be doing in ten years?
+What's the best thing about {birthday}? Be sincere, just this once.
+Leave a message for {birthday} to watch on their next birthday.
+Sing happy birthday to {birthday}, in any style you like.
+What's the worst gift you've ever given anyone?
+What's the most rebellious thing you did as a teenager?
+What's the pettiest grudge you're still holding?
+What's a lie you've told this weekend?
+Confess something you did this weekend that nobody saw.
+Who at this party would survive longest in a zombie apocalypse? Who goes first?
+What's the worst date you've ever been on?
+What's the most trouble you've ever been in?
+What's your most irrational fear?
+What's your guilty-pleasure TV show?
+What's the most money you've wasted on something stupid?
+If this weekend were a film, what would it be called?
+What's your hidden talent? Show us.
+Which celebrity would play you in the film of your life?

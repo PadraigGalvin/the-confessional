@@ -1,0 +1,15 @@
+{
+  "name": "confession-booth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A webcam confession booth for a birthday weekend",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "booth": "node scripts/start-booth.js",
+    "prep": "node scripts/prep-for-edit.js"
+  }
+}

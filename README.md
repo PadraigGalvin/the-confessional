@@ -1,0 +1,93 @@
+# Confession booth
+
+A webcam confession booth for a birthday weekend. Guests type their names, then answer a few random questions on camera. Each answer is saved as its own video clip, with a record of who answered what, ready to cut into a compilation afterwards.
+
+It runs on one computer (Linux or Windows): a small Node server writes the recordings to disk, and Chrome shows the booth full-screen.
+
+## You'll need
+
+- [Node.js](https://nodejs.org) 20 or newer
+- Google Chrome (or Microsoft Edge on Windows)
+- A webcam and microphone
+- [ffmpeg](https://ffmpeg.org), only for preparing the clips after the weekend
+
+There are no npm packages to install.
+
+## Running the booth
+
+- **Linux:** `npm run booth`
+- **Windows:** double-click `start-booth.cmd`
+
+This starts the server and opens the booth full-screen in kiosk mode. It uses its own browser profile (`.booth-browser-profile/`) where camera and microphone access is allowed automatically. If the server crashes it restarts by itself. Press **Alt+F4** to close the booth window, which also stops the server.
+
+To run just the server, use `npm start` and open http://localhost:3000 in Chrome.
+
+## How guests use it
+
+1. Type a name (or a few names) and press Enter.
+2. After a 3-2-1 countdown, the first question appears and recording starts.
+3. Click **Next question**, or press Space, Enter or →. Each question also moves on by itself after `maxSecondsPerQuestion`.
+4. After the last question, a thank-you screen shows and the booth resets for the next guest.
+
+**Esc** ends the session early, which is handy if someone starts by accident.
+
+## Settings
+
+Edit `config.json`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `birthdayName` | `"the birthday person"` | Replaces `{birthday}` in the questions |
+| `questionsPerSession` | `5` | Questions per guest, picked at random from `questions.txt` |
+| `maxSecondsPerQuestion` | `90` | Time limit per question before it moves on by itself |
+| `countdownSeconds` | `3` | Countdown before the first question |
+| `thankYouSeconds` | `10` | How long the thank-you screen stays up |
+| `videoBitsPerSecond` | `2500000` | Video quality. 2.5 Mbps is about 1.2 GB per hour of footage |
+| `cameraName` / `microphoneName` | `""` | Part of a device name to use instead of the system default, e.g. `"C920"` |
+| `host` / `port` | `127.0.0.1` / `3000` | Where the server listens |
+| `recordingsDir` | `"recordings"` | Where clips are saved |
+
+Add questions to `questions.txt`, one per line. Lines starting with `#` are ignored.
+
+Both files are re-read for every new guest, so you can change them while the booth is running. The exceptions are `host`, `port` and `recordingsDir`, which need a restart.
+
+To find device names for `cameraName`/`microphoneName`, open http://localhost:3000 in normal Chrome and look in the DevTools console. The booth lists every camera and microphone it can see.
+
+## What gets saved
+
+```
+recordings/
+  index.csv                                   one row per clip, across all sessions
+  2026-10-11_14-23-05_sam-and-alex/
+    session.json                              names, questions, timings
+    01-describe-the-birthday-person-in-three.mp4
+    02-whats-the-worst-gift-youve-ever-given.mp4
+    ...
+```
+
+- **`session.json`** records each question with its start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
+- **`index.csv`** opens in Excel or a spreadsheet app. Sort it by question to build "everyone answers X" montages.
+
+Video is uploaded in 2-second chunks while recording. If the browser or computer crashes, you lose at most the last couple of seconds.
+
+## After the weekend
+
+```
+npm run prep
+```
+
+This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings-for-edit/`, with the same folder layout, `session.json` files and `index.csv`. Browser recordings use a variable frame rate, which Premiere and DaVinci Resolve can mishandle: audio drifts out of sync on the timeline. Edit from `recordings-for-edit/`, not `recordings/`. If you run it again, it skips clips that are already converted.
+
+## Before the party
+
+- Do a full test session, then play the clips back with sound.
+- Turn off screen blanking, sleep and automatic updates/restarts, and keep the computer plugged in.
+- Check free disk space. Plan for about 1.2 GB per hour of answers.
+- Light the guests' faces: a lamp behind the screen pointing at them makes a big difference.
+- Optional, Linux only: fix the webcam's exposure and focus so it doesn't hunt in dim light. Run `v4l2-ctl -d /dev/video0 --list-ctrls` to see what your camera supports.
+
+## Troubleshooting
+
+- **"The camera is being used by another app"**: close Zoom, Teams, OBS and similar apps, then press Try again.
+- **Wrong camera or microphone**: set `cameraName` or `microphoneName` in `config.json`, then press F5 in the booth window to reload it.
+- **"Something is already running at http://127.0.0.1:3000"**: the booth (or something else) is already using that port. Close the other booth window, or change `port`.
