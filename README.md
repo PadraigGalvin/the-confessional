@@ -6,10 +6,10 @@ It runs on one computer (Linux or Windows): a small Node server writes the recor
 
 ## You'll need
 
-- [Node.js](https://nodejs.org) 20 or newer
+- [Node.js](https://nodejs.org) 20 or newer (22 or newer to make the film)
 - Google Chrome (or Microsoft Edge on Windows)
 - A webcam and microphone
-- [ffmpeg](https://ffmpeg.org), only for preparing the clips after the weekend
+- [ffmpeg](https://ffmpeg.org), only for making the film after the weekend
 
 There are no npm packages to install.
 
@@ -84,13 +84,57 @@ recordings/
 
 Video is uploaded in 2-second chunks while recording. If the browser or computer crashes, you lose at most the last couple of seconds.
 
-## After the weekend
+## Making the film
+
+The film is made in one command, from a spreadsheet where you pick the clips. It looks like an episode of the show:
+
+- Opening titles: "Jo · The Weekend" over a wall of guests' faces.
+- A question card whenever the question changes.
+- Each answer with the guest's name tag and the show title burned in, exactly as the booth showed them.
+- A "Happy birthday, Jo." freeze frame, then credits listing everyone in the film.
+
+Every answer's volume is levelled, so quiet and loud guests sound alike. The film has chapters for each question, so you can skip ahead in VLC.
+
+1. Run `npm run compile`. The first time, it creates `compilation/running-order.csv` with one row per clip.
+2. Open it in a spreadsheet app, and watch the clips in `recordings/`. The `file` column says which is which.
+3. Number the clips you want in the `order` column: 1, 2, 3… Clips without a number are left out. Use decimals, like 2.5, to slot a clip in between without renumbering.
+4. Save it as CSV, then run `npm run compile` again. The film is saved as `compilation/jo-the-weekend.mp4`.
+
+The other columns you can change:
+
+| Column | What it does |
+|---|---|
+| `start` / `end` | Trim the clip, in seconds from its start, like `3` or `12.5` (or `1:05`). Most answers start with a few seconds of the guest reading the question, so trimming `start` makes the film much snappier. |
+| `name` / `tagline` | What the name tag says. Fix typos or capitals here. |
+| `card` | The question card shown before the clip. Clear it for no card. Consecutive clips with the same card share one, so to build an "everyone answers X" montage, number those clips one after the other. You can also put different words on the card than the guest was asked… |
+
+To add a chapter heading, like "And now… the toasts", add a row with just an `order` and a `card`. You can also add your own videos, like phone footage from the weekend, by adding a row with a `file` path (relative to `recordings/`, or a full path).
+
+Run `npm run compile` as often as you like. Each piece is rendered once and kept in `compilation/cache/`, so after you change the order or a trim, only the changed pieces are redone. Clips recorded after the spreadsheet was made are added to the bottom, and nothing you've typed is lost. To skip a clip, leave its `order` empty rather than deleting the row, because deleted rows come back at the bottom. Delete `compilation/cache/` to free up disk space once the film is done.
+
+`npm run compile -- --all` makes a film of every clip in spreadsheet order, ignoring `order`. It's a quick way to check the titles and the look.
+
+Settings, in the `compilation` section of `config.json`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `introMusic` | `""` | An audio file (path relative to this folder) to play under the opening titles |
+| `outroMusic` | `""` | An audio file to play under the ending and credits |
+| `introVideo` | `""` | A ready-made intro video to use instead of the generated titles |
+| `outroTitle` | `"Happy birthday,\n{birthday}."` | The ending's title. `\n` starts a new line |
+| `outroNote` | `"Love from everyone who stepped into the booth"` | The line under it |
+| `lowerThirdSeconds` | `6` | How long the name tag stays up at the start of each answer |
+| `normalizeAudio` | `true` | Level every answer's volume |
+
+On a recent laptop, rendering takes about 40% of the film's length: a 15-minute film takes about 6 minutes the first time.
+
+### Editing by hand instead
 
 ```
 npm run prep
 ```
 
-This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings-for-edit/`, with the same folder layout, `session.json` files and `index.csv`. Browser recordings use a variable frame rate, which Premiere and DaVinci Resolve can mishandle: audio drifts out of sync on the timeline. Edit from `recordings-for-edit/`, not `recordings/`. If you run it again, it skips clips that are already converted.
+This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings-for-edit/`, with the same folder layout, `session.json` files and `index.csv`. Browser recordings use a variable frame rate, which Premiere and DaVinci Resolve can mishandle: audio drifts out of sync on the timeline. Edit from `recordings-for-edit/`, not `recordings/`. If you run it again, it skips clips that are already converted. You don't need this for `npm run compile`, which reads `recordings/` directly.
 
 ## Before the party
 
@@ -101,6 +145,8 @@ This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings
   - The level meter on the settings page shows what the booth will record, so check it there too.
 - If you can, use an external USB mic or a webcam with a built-in mic. A laptop's internal mic sits right next to the fan.
 - Do a full test session, then play the clips back with sound.
+- Set `birthdayName` in `config.json`, then run `npm run compile -- --all` to see the film's titles and graphics with your test clips. Pick the intro and outro music now, not on Sunday night.
+- Then delete the test sessions and `compilation/`, so the test clips don't end up in the film.
 - Turn off screen blanking, sleep and automatic updates/restarts, and keep the computer plugged in.
 - Check free disk space. Plan for about 1.2 GB per hour of answers.
 - Light the guests' faces: a lamp behind the screen pointing at them makes a big difference.

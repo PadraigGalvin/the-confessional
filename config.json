@@ -9,5 +9,14 @@
   "microphoneName": "",
   "host": "127.0.0.1",
   "port": 3000,
-  "recordingsDir": "recordings"
+  "recordingsDir": "recordings",
+  "compilation": {
+    "introVideo": "",
+    "introMusic": "",
+    "outroMusic": "",
+    "outroTitle": "Happy birthday,\n{birthday}.",
+    "outroNote": "Love from everyone who stepped into the booth",
+    "lowerThirdSeconds": 6,
+    "normalizeAudio": true
+  }
 }

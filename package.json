@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "booth": "node scripts/start-booth.js",
-    "prep": "node scripts/prep-for-edit.js"
+    "prep": "node scripts/prep-for-edit.js",
+    "compile": "node scripts/compile.js"
   }
 }

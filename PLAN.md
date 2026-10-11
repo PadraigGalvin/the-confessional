@@ -32,8 +32,12 @@ confession-booth/
   scripts/
     start-booth.js      # start + supervise server, then Chrome/Edge kiosk with dedicated profile
     prep-for-edit.js    # post-weekend: ffmpeg batch-transcode to constant-frame-rate H.264/AAC MP4
+    compile.js          # post-weekend: running order spreadsheet -> finished film (see below)
+    graphics/graphics.html  # the film's graphics, drawn with public/style.css
+    lib/                # find-browser (shared with start-booth), headless-Chrome graphics, CSV
   start-booth.cmd       # Windows double-click launcher
   recordings/           # output (created at runtime, gitignored)
+  compilation/          # running-order.csv, render cache and the finished film (gitignored)
   README.md             # setup + running notes
 ```
 
@@ -85,6 +89,16 @@ The helper scripts are Node rather than bash, so the same scripts run on Windows
 4. When the browser exits (Alt+F4), it stops the server.
 
 The README covers disabling the OS screensaver/suspend and checking free disk space (about 1.2 GB per hour of footage).
+
+## Compilation film (`scripts/compile.js`)
+Goal: at the end of the weekend, the film is one spreadsheet edit and one command away.
+
+- **Running order:** `compilation/running-order.csv` is made from `index.csv` on the first run. On later runs, newly recorded clips are appended and everything already there is left alone. The file is only rewritten when clips are added, and a write failure (the file open in Excel) is a warning, not an error. Editable columns are `order` (any numbers, decimals to slot in between), `start`/`end` (seconds or m:ss), `name`, `tagline` and `card`, followed by read-only info columns. Clips are matched by `file`, columns by header name, so the easter-egg branch's extra `section` column is carried along. Rows with only a `card` are chapter headings. Parsing copes with how spreadsheet apps re-save CSV: semicolons, decimal commas, a BOM, CRLF line endings and unquoted fields.
+- **Film structure:** opening titles (the show name over a mosaic of guests' faces, with the title sliding in), then each chosen clip in order. A question card plays whenever the `card` text changes. Each answer has the bug and the lower-third name tag, which fades out after `lowerThirdSeconds` and is skipped when the same guest answers again straight after. The film ends with a booth-style wrap freeze frame ("Happy birthday, Jo.") and a "Starring" credits card. Chapters are written for every card.
+- **Graphics:** `graphics.html` links `public/style.css` and reuses the booth's markup and ids, so the name tag and wrap screen are pixel-identical to the booth. Headless Chrome renders each graphic at 1920×1080 (`--u` = 1vw scales exactly) over a transparent background. It's driven over CDP with Node's built-in WebSocket (Node 22+), so there are no dependencies. Puppeteer was rejected because it needs npm. ffmpeg `drawtext`/ASS were rejected because matching the look and text wrapping would be fiddly.
+- **Rendering:** each piece (card, answer, title) is its own MP4 with identical encoding settings: 1080p30, libx264 veryfast CRF 18, AAC 48 kHz stereo. Pieces are joined with the concat demuxer, copying the video and re-encoding the audio. Answers are read straight from `recordings/` (VFR is fixed by `fps=30` + `aresample=async=1`), trimmed and fitted to 16:9. Audio is levelled with two-pass `loudnorm` to -16 LUFS, because test clips differed by 16 dB. Graphics are held with the `loop` filter rather than `-loop 1`, which re-decodes the PNG every frame.
+- **Cache:** pieces, stills and graphics are named by a hash of their inputs (file size and mtime, trim, text, `graphics.html` + `style.css`, encoder settings, `RENDER_VERSION`). A re-run after reordering only re-joins the pieces, which takes seconds.
+- **Optional assets** (in `config.json` → `compilation`): `introVideo` replaces the generated titles; `introMusic` plays under the titles, and `outroMusic` plays under the wrap and credits.
 
 ## Verification
 1. `npm start`, then smoke-test the API with curl: create a session, post a couple of dummy chunks, end the clip and the session. Check the folder layout, `session.json` and the `index.csv` row.

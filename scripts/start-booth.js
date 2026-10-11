@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { findBrowser } from './lib/find-browser.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROFILE_DIR = path.join(ROOT, '.booth-browser-profile');
@@ -16,31 +17,6 @@ const SERVER_START_TIMEOUT_MS = 15000;
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
 const host = !config.host || config.host === '0.0.0.0' ? '127.0.0.1' : config.host;
 const url = `http://${host}:${config.port ?? 3000}/`;
-
-function findOnPath(command) {
-  for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
-    const candidate = path.join(dir, command);
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return null;
-}
-
-function findBrowser() {
-  if (process.env.BOOTH_BROWSER) return process.env.BOOTH_BROWSER;
-  const { PROGRAMFILES, LOCALAPPDATA } = process.env;
-  const programFilesX86 = process.env['PROGRAMFILES(X86)'];
-  const candidates = {
-    win32: [
-      PROGRAMFILES && path.join(PROGRAMFILES, 'Google', 'Chrome', 'Application', 'chrome.exe'),
-      programFilesX86 && path.join(programFilesX86, 'Google', 'Chrome', 'Application', 'chrome.exe'),
-      LOCALAPPDATA && path.join(LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe'),
-      programFilesX86 && path.join(programFilesX86, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-      PROGRAMFILES && path.join(PROGRAMFILES, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-    ],
-    darwin: ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],
-  }[process.platform] ?? ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge'].map(findOnPath);
-  return candidates.find((candidate) => candidate && fs.existsSync(candidate));
-}
 
 async function serverIsUp() {
   try {

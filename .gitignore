@@ -1,6 +1,7 @@
 node_modules/
 recordings/
 recordings-for-edit/
+compilation/
 .booth-browser-profile/
 .claude/
 .playwright-mcp/
