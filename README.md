@@ -33,7 +33,16 @@ To run just the server, use `npm start` and open http://localhost:3000 in Chrome
 
 ## Settings
 
-Edit `config.json`:
+Open http://localhost:3000/settings, or press **Ctrl+,** on the booth's start screen. The shortcut is the way in from kiosk mode, where there's no address bar. The settings page has:
+
+- the camera and microphone, with a live preview and a level meter for the mic
+- the birthday person's name, the number of questions and the timings
+- the video quality
+- the questions themselves
+
+Press **Save changes** (or Ctrl+S), then **Back to booth**. The booth reloads with the new settings.
+
+The page saves to `config.json` and `questions.txt`, which you can also edit by hand:
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -43,15 +52,15 @@ Edit `config.json`:
 | `countdownSeconds` | `3` | Countdown before the first question |
 | `thankYouSeconds` | `10` | How long the "That's a wrap" screen stays up |
 | `videoBitsPerSecond` | `2500000` | Video quality. 2.5 Mbps is about 1.2 GB per hour of footage |
-| `cameraName` / `microphoneName` | `""` | Part of a device name to use instead of the system default, e.g. `"C920"` |
+| `cameraName` / `microphoneName` | `""` | Part of a device name to use instead of the system default, e.g. `"C920"`. The settings page saves the full name |
 | `host` / `port` | `127.0.0.1` / `3000` | Where the server listens |
 | `recordingsDir` | `"recordings"` | Where clips are saved |
 
 Add questions to `questions.txt`, one per line. Lines starting with `#` are ignored.
 
-Both files are re-read for every new guest, so you can change them while the booth is running. The exceptions are `host`, `port` and `recordingsDir`, which need a restart.
+Both files are re-read for every new guest, so you can change them while the booth is running. A new camera or mic takes effect when the booth reloads, which it does after every guest (or press F5). The exceptions are `host`, `port` and `recordingsDir`, which need a restart. They aren't on the settings page.
 
-To find device names for `cameraName`/`microphoneName`, open http://localhost:3000 in normal Chrome and look in the DevTools console. The booth lists every camera and microphone it can see.
+Anyone who can open the booth's address can change its settings. With the default `host` of `127.0.0.1`, that's only this computer.
 
 ## What gets saved
 
@@ -84,6 +93,7 @@ This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings
   - With nobody talking, the level meter should stay low. If fan or room noise alone fills it, turn the input volume down.
   - Then talk from where guests will stand. The meter should move clearly with your voice.
   - The booth never changes this level itself.
+  - The level meter on the settings page shows what the booth will record, so check it there too.
 - If you can, use an external USB mic or a webcam with a built-in mic. A laptop's internal mic sits right next to the fan.
 - Do a full test session, then play the clips back with sound.
 - Turn off screen blanking, sleep and automatic updates/restarts, and keep the computer plugged in.
@@ -95,5 +105,5 @@ This converts every clip into a constant-frame-rate H.264/AAC MP4 in `recordings
 
 - **"The camera is being used by another app"**: close Zoom, Teams, OBS and similar apps, then press Try again.
 - **Recordings are mostly hiss, or voices are faint or missing**: the system mic level is wrong, usually far too high, so noise drowns out the voice. Set it as described under "Before the party".
-- **Wrong camera or microphone**: set `cameraName` or `microphoneName` in `config.json`, then press F5 in the booth window to reload it.
+- **Wrong camera or microphone**: press Ctrl+, in the booth (or **Settings** on the error screen), pick the right one, save, then go back to the booth.
 - **"Something is already running at http://127.0.0.1:3000"**: the booth (or something else) is already using that port. Close the other booth window, or change `port`.

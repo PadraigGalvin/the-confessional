@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Booth settings</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/settings.css">
+  <script type="module" src="/settings.js"></script>
+</head>
+<body>
+  <form class="settings" id="settings-form" autocomplete="off">
+    <header class="masthead">
+      <h1 class="masthead-title">Booth settings</h1>
+      <a class="button is-secondary" href="/">Back to booth</a>
+    </header>
+
+    <div class="columns">
+      <fieldset class="section">
+        <legend>Recording</legend>
+
+        <div class="monitor">
+          <video class="monitor-video" id="preview" autoplay muted playsinline aria-label="Preview of the selected camera"></video>
+          <p class="monitor-message" id="preview-message">Waking up the camera…</p>
+        </div>
+        <p class="hint">Mirrored, the way guests see themselves. The recordings aren't flipped.</p>
+
+        <div class="field">
+          <label for="cameraName">Camera</label>
+          <select id="cameraName" name="cameraName"><option value="">System default</option></select>
+        </div>
+
+        <div class="field">
+          <label for="microphoneName">Microphone</label>
+          <select id="microphoneName" name="microphoneName" aria-describedby="mic-hint"><option value="">System default</option></select>
+          <div class="level" aria-hidden="true"><div class="level-fill" id="mic-level"></div></div>
+          <p class="hint" id="mic-hint">With the room quiet, the bar should stay low. Talk from where guests will stand and it should jump with your voice. If it's high even when nobody's talking, turn down the input volume in your computer's sound settings.</p>
+        </div>
+
+        <div class="field">
+          <label for="videoMbps">Video quality, in Mbps</label>
+          <p class="hint" id="videoMbps-hint">0.5 to 20. <span id="disk-estimate"></span></p>
+          <input class="is-short" type="number" id="videoMbps" name="videoMbps" min="0.5" max="20" step="0.1" required aria-describedby="videoMbps-hint">
+        </div>
+      </fieldset>
+
+      <fieldset class="section">
+        <legend>The show</legend>
+
+        <div class="field">
+          <label for="birthdayName">Birthday person's name</label>
+          <p class="hint" id="birthdayName-hint">Fills in {birthday} in the questions, and shows in the corner of the screen.</p>
+          <input id="birthdayName" name="birthdayName" required maxlength="60" spellcheck="false" aria-describedby="birthdayName-hint">
+        </div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="questionsPerSession">Questions per guest</label>
+            <p class="hint" id="questionsPerSession-hint">1 to 100</p>
+            <input class="is-short" type="number" id="questionsPerSession" name="questionsPerSession" min="1" max="100" step="1" required aria-describedby="questionsPerSession-hint">
+          </div>
+          <div class="field">
+            <label for="maxSecondsPerQuestion">Seconds per question</label>
+            <p class="hint" id="maxSecondsPerQuestion-hint">5 to 600, then it moves on by itself</p>
+            <input class="is-short" type="number" id="maxSecondsPerQuestion" name="maxSecondsPerQuestion" min="5" max="600" step="1" required aria-describedby="maxSecondsPerQuestion-hint">
+          </div>
+          <div class="field">
+            <label for="countdownSeconds">Countdown, in seconds</label>
+            <p class="hint" id="countdownSeconds-hint">0 to 10. 0 skips it</p>
+            <input class="is-short" type="number" id="countdownSeconds" name="countdownSeconds" min="0" max="10" step="1" required aria-describedby="countdownSeconds-hint">
+          </div>
+          <div class="field">
+            <label for="thankYouSeconds">"That's a wrap" screen, in seconds</label>
+            <p class="hint" id="thankYouSeconds-hint">0 to 60</p>
+            <input class="is-short" type="number" id="thankYouSeconds" name="thankYouSeconds" min="0" max="60" step="1" required aria-describedby="thankYouSeconds-hint">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="questions">Questions</label>
+          <p class="hint" id="questions-hint">One per line. {birthday} becomes the birthday person's name, and lines starting with # are ignored.</p>
+          <textarea id="questions" name="questions" rows="18" aria-describedby="questions-hint question-count"></textarea>
+          <p class="hint" id="question-count"></p>
+        </div>
+      </fieldset>
+    </div>
+
+    <footer class="save-bar">
+      <p class="status" id="status" role="status">Loading settings…</p>
+      <button type="submit" class="button" id="save-button" disabled>Save changes</button>
+    </footer>
+  </form>
+</body>
+</html>

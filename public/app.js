@@ -2,6 +2,8 @@
 // recording. Each question is its own MediaRecorder, streamed to the server in
 // small chunks so a crash loses at most a couple of seconds.
 
+import { cameraErrorMessage, findDevice, mediaConstraints } from './media.js';
+
 const $ = (id) => document.getElementById(id);
 
 // MP4 with AAC audio is the friendliest for video editors; fall back from there.
@@ -57,22 +59,6 @@ function formatSeconds(total) {
 
 // --- Camera & screen ---
 
-function mediaConstraints(cameraId, microphoneId) {
-  return {
-    video: { deviceId: cameraId && { exact: cameraId }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-    // Nothing plays through the speakers, so echo cancellation would only degrade the audio.
-    // Auto gain is off because Chrome implements it by turning up the system mic volume,
-    // which over a weekend ends up maxed out and recording mostly fan noise.
-    // Noise suppression stays on to tame fan hum and party chatter.
-    audio: {
-      deviceId: microphoneId && { exact: microphoneId },
-      echoCancellation: false,
-      autoGainControl: false,
-      noiseSuppression: true,
-    },
-  };
-}
-
 // Device labels are only readable once permission is granted, so open the
 // defaults first, then switch if config.json names a specific camera or mic.
 async function startCamera() {
@@ -85,7 +71,7 @@ async function startCamera() {
 
   const pick = (kind, name) => {
     if (!name) return undefined;
-    const device = devices.find((d) => d.kind === kind && d.label.toLowerCase().includes(name.toLowerCase()));
+    const device = findDevice(devices, kind, name);
     if (!device) console.warn(`No ${kind} matching "${name}", using the default`);
     return device?.deviceId;
   };
@@ -99,20 +85,6 @@ async function startCamera() {
   $('preview').srcObject = stream;
   for (const track of stream.getTracks()) {
     track.addEventListener('ended', () => fail('The camera or microphone was disconnected. Plug it back in, then try again.'));
-  }
-}
-
-function cameraErrorMessage(err) {
-  switch (err?.name) {
-    case 'NotAllowedError':
-      return 'Camera access is blocked. Allow the camera and microphone for this page in the browser settings, then try again.';
-    case 'NotFoundError':
-    case 'OverconstrainedError':
-      return 'No camera or microphone was found. Plug them in, then try again.';
-    case 'NotReadableError':
-      return 'The camera is being used by another app. Close that app, then try again.';
-    default:
-      return `The camera couldn't start (${err?.message ?? 'unknown error'}). Try again.`;
   }
 }
 
@@ -346,7 +318,14 @@ $('start-form').addEventListener('submit', async (event) => {
 $('next-button').addEventListener('click', () => advance('next'));
 $('retry-button').addEventListener('click', () => location.reload());
 
+// Only between guests, so a session is never cut off mid-answer.
+const SETTINGS_SHORTCUT_STATES = ['loading', 'start', 'error'];
+
 document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey && event.key === ',' && SETTINGS_SHORTCUT_STATES.includes(booth.dataset.state)) {
+    location.assign('/settings');
+    return;
+  }
   if (booth.dataset.state !== 'question' || event.repeat) return;
   if (event.key === 'Escape') {
     event.preventDefault();

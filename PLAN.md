@@ -23,8 +23,11 @@ confession-booth/
   questions.txt         # one question per line; blank lines and #comments ignored
   public/
     index.html          # all screens as <section>s, toggled via [hidden]
+    theme.css           # bundled fonts + colour tokens, shared by both pages
     style.css           # reality TV talking head: full-screen preview, question strip, name-tag lower third, REC bug, timer line
     app.js              # state machine + recorder + chunk upload queue
+    media.js            # getUserMedia constraints, device matching, camera error messages (shared)
+    settings.html/.css/.js  # /settings: edit config.json + questions.txt, camera preview, mic level meter
     fonts/              # Barlow + Barlow Condensed (bundled so the booth works offline)
   scripts/
     start-booth.js      # start + supervise server, then Chrome/Edge kiosk with dedicated profile
@@ -49,6 +52,7 @@ The helper scripts are Node rather than bash, so the same scripts run on Windows
 - All disk writes for a session go through one per-session promise queue, and `session.json` is written atomically (temp file + rename).
 - `POST /api/session/:id/clip/:n/end` `{startedAt, endedAt, endedBy: "next"|"timer"|"escape"}` updates the clip entry in `session.json`.
 - `POST /api/session/:id/end` `{status: "completed"|"ended-early"}` sets `endedAt` and `status`, and appends one row per clip to `recordings/index.csv` (session dir, name, question #, question, file, duration, endedBy, recorded at, tagline). This CSV gives one overview across all sessions for building "everyone answers question X" montages.
+- `GET /settings` serves the settings page. `PUT /api/settings` validates the guest-facing settings (ranges, lengths) and rewrites `config.json` atomically; `GET`/`PUT /api/questions` reads and writes the raw `questions.txt`. Writes use PUT, so a page on another site can't send them without a CORS preflight, which the server never grants.
 - **Safety:** active sessions live in an in-memory Map, and an unknown `sessionId` gets a 404. `:n` must be an integer in range. Names and questions are slugified (lowercase, `[a-z0-9-]`, max ~40 chars) before they're used in paths. Request bodies are size-capped per chunk.
 - `session.json` shape: `{name, tagline, startedAt, endedAt, status, mimeType, clips: [{index, question, file, startedAt, endedAt, durationSec, endedBy}]}`.
 
@@ -65,7 +69,8 @@ The helper scripts are Node rather than bash, so the same scripts run on Windows
   - Debounce Next for about 1s so a double-press doesn't skip a question.
   - On advance: `recorder.stop()`, wait for the final chunk and the upload queue to drain, `POST …/end`, then start the next clip right away.
 - **MIME selection:** use the first type that `MediaRecorder.isTypeSupported` accepts, preferring MP4 H.264+AAC, then H.264+Opus, then WebM. Linux Chrome has no AAC encoder, so it records H.264+Opus. The prep script converts the audio to AAC.
-- **Device selection:** open the default devices, list the device labels in the console, and switch if `cameraName`/`microphoneName` matches one. If nothing matches, keep the default and log a warning.
+- **Device selection:** open the default devices, list the device labels in the console, and switch if `cameraName`/`microphoneName` matches one (an exact label first, then a substring). If nothing matches, keep the default and log a warning.
+- **Settings shortcut:** Ctrl+, opens `/settings` from the loading, start and error screens, never mid-session.
 - **Upload queue:** a sequential promise chain so chunks append in order. Each chunk gets 3 retries with backoff, and failures are logged to the console.
 - **THANKS:** "That's a wrap" over a freeze frame of the last camera frame (drawn to a canvas), then an automatic return to START after `thankYouSeconds`. The return to START does a full `location.reload()` so a multi-day run never builds up memory or stale recorder state.
 - **Robustness:**

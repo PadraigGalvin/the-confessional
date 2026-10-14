@@ -28,6 +28,19 @@ const DEFAULTS = {
   recordingsDir: 'recordings',
 };
 
+// What the settings page may change. host, port and recordingsDir need a restart,
+// so they stay config.json-only.
+const EDITABLE_NUMBERS = {
+  questionsPerSession: [1, 100],
+  maxSecondsPerQuestion: [5, 600],
+  countdownSeconds: [0, 10],
+  thankYouSeconds: [0, 60],
+  videoBitsPerSecond: [500_000, 20_000_000],
+};
+const EDITABLE_TEXT = { birthdayName: 60, cameraName: 200, microphoneName: 200 };
+
+const PAGES = { '/settings': '/settings.html' };
+
 const MAX_CHUNK_BYTES = 64 * 1024 * 1024;
 const MAX_JSON_BYTES = 64 * 1024;
 const END_REASONS = new Set(['next', 'timer', 'escape']);
@@ -75,12 +88,48 @@ function clientSettings(cfg) {
   };
 }
 
-function readQuestions(birthdayName) {
-  return fs.readFileSync(QUESTIONS_PATH, 'utf8')
+function parseQuestions(text) {
+  return text
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
+    .filter((line) => line && !line.startsWith('#'));
+}
+
+function readQuestions(birthdayName) {
+  return parseQuestions(fs.readFileSync(QUESTIONS_PATH, 'utf8'))
     .map((question) => question.replaceAll('{birthday}', birthdayName));
+}
+
+async function writeFileAtomic(target, text) {
+  await fsp.writeFile(`${target}.tmp`, text);
+  await fsp.rename(`${target}.tmp`, target);
+}
+
+function parseSettings(input) {
+  const settings = {};
+  for (const [key, [min, max]] of Object.entries(EDITABLE_NUMBERS)) {
+    const value = input?.[key];
+    if (!Number.isInteger(value) || value < min || value > max) {
+      throw new HttpError(400, `${key} must be a whole number from ${min} to ${max}`);
+    }
+    settings[key] = value;
+  }
+  for (const [key, maxLength] of Object.entries(EDITABLE_TEXT)) {
+    const value = input?.[key];
+    if (typeof value !== 'string' || value.trim().length > maxLength) {
+      throw new HttpError(400, `${key} must be text of up to ${maxLength} characters`);
+    }
+    settings[key] = value.trim();
+  }
+  if (!settings.birthdayName) throw new HttpError(400, 'birthdayName is required');
+  return settings;
+}
+
+async function saveSettings(changes) {
+  const updated = { ...loadConfig(), ...changes };
+  await writeFileAtomic(CONFIG_PATH, `${JSON.stringify(updated, null, 2)}\n`);
+  config = updated;
+  return updated;
 }
 
 function pickRandom(items, count) {
@@ -133,10 +182,8 @@ function enqueue(session, task) {
   return run;
 }
 
-async function writeSessionFile(session) {
-  const target = path.join(session.dir, 'session.json');
-  await fsp.writeFile(`${target}.tmp`, JSON.stringify(session.data, null, 2));
-  await fsp.rename(`${target}.tmp`, target);
+function writeSessionFile(session) {
+  return writeFileAtomic(path.join(session.dir, 'session.json'), JSON.stringify(session.data, null, 2));
 }
 
 async function createSessionDir(recordingsDir, name) {
@@ -251,6 +298,30 @@ async function handleApi(req, res, parts, url, recordingsDir) {
   // GET /api/settings
   if (req.method === 'GET' && resource === 'settings' && parts.length === 1) {
     return sendJson(res, 200, clientSettings(loadConfig()));
+  }
+
+  // Changes use PUT, which a page on another site can only send after a CORS
+  // preflight. This server never answers one, so only the booth's own pages can save.
+
+  // PUT /api/settings  { birthdayName, questionsPerSession, ..., cameraName, microphoneName }
+  if (req.method === 'PUT' && resource === 'settings' && parts.length === 1) {
+    const saved = await saveSettings(parseSettings(await readJson(req)));
+    console.log('Settings saved');
+    return sendJson(res, 200, clientSettings(saved));
+  }
+
+  // GET /api/questions -> { text }    PUT /api/questions  { text }
+  // The raw file, comments and all, so the settings page can edit it as-is.
+  if (resource === 'questions' && parts.length === 1) {
+    if (req.method === 'GET') return sendJson(res, 200, { text: await fsp.readFile(QUESTIONS_PATH, 'utf8') });
+    if (req.method === 'PUT') {
+      const { text } = await readJson(req);
+      if (typeof text !== 'string') throw new HttpError(400, 'text is required');
+      if (parseQuestions(text).length === 0) throw new HttpError(400, 'Add at least one question');
+      await writeFileAtomic(QUESTIONS_PATH, text.endsWith('\n') ? text : `${text}\n`);
+      console.log('Questions saved');
+      return sendJson(res, 200, { ok: true });
+    }
   }
 
   if (req.method !== 'POST' || resource !== 'session') throw new HttpError(404, 'Not found');
@@ -373,7 +444,7 @@ const server = http.createServer(async (req, res) => {
     if (parts[0] === 'api') {
       await handleApi(req, res, parts.slice(1), url, recordingsDir);
     } else if (req.method === 'GET' || req.method === 'HEAD') {
-      await serveStatic(req, res, url.pathname);
+      await serveStatic(req, res, PAGES[url.pathname] ?? url.pathname);
     } else {
       throw new HttpError(405, 'Method not allowed');
     }
