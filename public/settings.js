@@ -5,7 +5,9 @@ import { cameraErrorMessage, findDevice, mediaConstraints } from './media.js';
 
 const $ = (id) => document.getElementById(id);
 
-const NUMBER_FIELDS = ['questionsPerSession', 'maxSecondsPerQuestion', 'countdownSeconds', 'thankYouSeconds'];
+const NUMBER_FIELDS = ['maxSecondsPerQuestion', 'countdownSeconds', 'thankYouSeconds'];
+const MIX_SECTIONS = ['funny', 'cute', 'last']; // the questionMix-<section> fields
+const DEFAULT_SECTION = 'funny'; // for questions above the first [section] line, as on the server
 const AUDIO_BITS_PER_SECOND = 128_000; // what the booth records audio at, for the disk estimate
 // Chrome on Windows lists these aliases next to the real devices; "System default" covers them.
 const ALIAS_DEVICE_IDS = new Set(['default', 'communications']);
@@ -46,6 +48,7 @@ function showPreviewMessage(message) {
 function fillForm(settings, questions) {
   $('birthdayName').value = settings.birthdayName;
   for (const key of NUMBER_FIELDS) $(key).value = settings[key];
+  for (const section of MIX_SECTIONS) $(`questionMix-${section}`).value = settings.questionMix[section] ?? 0;
   $('videoMbps').value = settings.videoBitsPerSecond / 1_000_000;
   $('questions').value = questions;
   updateDiskEstimate();
@@ -56,6 +59,7 @@ function readForm() {
   return {
     birthdayName: $('birthdayName').value.trim(),
     ...Object.fromEntries(NUMBER_FIELDS.map((key) => [key, $(key).valueAsNumber])),
+    questionMix: readMix(),
     videoBitsPerSecond: Math.round($('videoMbps').valueAsNumber * 1_000_000),
     cameraName: $('cameraName').value,
     microphoneName: $('microphoneName').value,
@@ -68,18 +72,44 @@ function updateDiskEstimate() {
   $('disk-estimate').textContent = Number.isFinite(gbPerHour) ? `About ${gbPerHour.toFixed(1)} GB per hour of answers.` : '';
 }
 
-// Counts questions the way the server does: blank lines and # comments don't count.
+function readMix() {
+  return Object.fromEntries(MIX_SECTIONS.map((section) => [section, $(`questionMix-${section}`).valueAsNumber]));
+}
+
+// { section: count } the way the server reads questions.txt: blank lines,
+// # comments and the [section] lines themselves don't count.
+function countQuestions(text) {
+  let section = DEFAULT_SECTION;
+  const counts = {};
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const header = line.match(/^\[\s*(.+?)\s*\]$/);
+    if (header) section = header[1].toLowerCase();
+    else counts[section] = (counts[section] ?? 0) + 1;
+  }
+  return counts;
+}
+
+// "3 [funny], 1 [cute] and 1 [last]", leaving out zeros.
+function describeCounts(counts) {
+  const parts = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([section, count]) => `${count} [${section}]`);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts.join('');
+}
+
 function updateQuestionCount() {
-  const count = $('questions').value.split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-    .length;
-  const perGuest = $('questionsPerSession').valueAsNumber;
-  $('questions').setCustomValidity(count ? '' : 'Add at least one question.');
-  $('question-count').textContent = count === 0
+  const counts = countQuestions($('questions').value);
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const mix = readMix();
+  const perGuest = Object.values(mix).reduce((sum, count) => sum + (Number.isFinite(count) ? count : 0), 0);
+  $('questions').setCustomValidity(total ? '' : 'Add at least one question.');
+  $('questionMix-funny').setCustomValidity(perGuest ? '' : 'Each guest needs at least one question.');
+  $('question-count').textContent = total === 0
     ? 'No questions yet.'
-    : `${count} question${count === 1 ? '' : 's'}.` +
-      (Number.isFinite(perGuest) ? ` Each guest gets ${Math.min(count, perGuest)} of them at random.` : '');
+    : `${total} question${total === 1 ? '' : 's'}: ${describeCounts(counts)}.` +
+      (perGuest ? ` Each guest gets ${describeCounts(mix)}, picked at random.` : '');
 }
 
 // --- Camera, mic and preview ---
@@ -182,7 +212,7 @@ form.addEventListener('input', (event) => {
   dirty = true;
   setStatus('Unsaved changes');
   if (event.target.id === 'videoMbps') updateDiskEstimate();
-  if (event.target.id === 'questions' || event.target.id === 'questionsPerSession') updateQuestionCount();
+  if (event.target.id === 'questions' || event.target.id.startsWith('questionMix-')) updateQuestionCount();
 });
 
 $('cameraName').addEventListener('change', startPreview);

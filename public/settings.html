@@ -56,9 +56,19 @@
 
         <div class="field-grid">
           <div class="field">
-            <label for="questionsPerSession">Questions per guest</label>
-            <p class="hint" id="questionsPerSession-hint">1 to 100</p>
-            <input class="is-short" type="number" id="questionsPerSession" name="questionsPerSession" min="1" max="100" step="1" required aria-describedby="questionsPerSession-hint">
+            <label for="questionMix-funny">Funny questions</label>
+            <p class="hint" id="questionMix-funny-hint">0 to 100, from [funny]</p>
+            <input class="is-short" type="number" id="questionMix-funny" name="questionMix-funny" min="0" max="100" step="1" required aria-describedby="questionMix-funny-hint">
+          </div>
+          <div class="field">
+            <label for="questionMix-cute">Cute questions</label>
+            <p class="hint" id="questionMix-cute-hint">0 to 100, from [cute]</p>
+            <input class="is-short" type="number" id="questionMix-cute" name="questionMix-cute" min="0" max="100" step="1" required aria-describedby="questionMix-cute-hint">
+          </div>
+          <div class="field">
+            <label for="questionMix-last">Closing questions</label>
+            <p class="hint" id="questionMix-last-hint">0 to 100, from [last], asked at the end</p>
+            <input class="is-short" type="number" id="questionMix-last" name="questionMix-last" min="0" max="100" step="1" required aria-describedby="questionMix-last-hint">
           </div>
           <div class="field">
             <label for="maxSecondsPerQuestion">Seconds per question</label>
@@ -79,7 +89,7 @@
 
         <div class="field">
           <label for="questions">Questions</label>
-          <p class="hint" id="questions-hint">One per line. {birthday} becomes the birthday person's name, and lines starting with # are ignored.</p>
+          <p class="hint" id="questions-hint">One per line. {birthday} becomes the birthday person's name, and lines starting with # are ignored. The [funny], [cute] and [last] lines start each section.</p>
           <textarea id="questions" name="questions" rows="18" aria-describedby="questions-hint question-count"></textarea>
           <p class="hint" id="question-count"></p>
         </div>

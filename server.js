@@ -16,7 +16,7 @@ const QUESTIONS_PATH = path.join(ROOT, 'questions.txt');
 
 const DEFAULTS = {
   birthdayName: 'the birthday person',
-  questionsPerSession: 5,
+  questionMix: { funny: 3, cute: 1, last: 1 }, // questions per guest from each [section] of questions.txt
   maxSecondsPerQuestion: 90,
   countdownSeconds: 3,
   thankYouSeconds: 10,
@@ -31,13 +31,14 @@ const DEFAULTS = {
 // What the settings page may change. host, port and recordingsDir need a restart,
 // so they stay config.json-only.
 const EDITABLE_NUMBERS = {
-  questionsPerSession: [1, 100],
   maxSecondsPerQuestion: [5, 600],
   countdownSeconds: [0, 10],
   thankYouSeconds: [0, 60],
   videoBitsPerSecond: [500_000, 20_000_000],
 };
 const EDITABLE_TEXT = { birthdayName: 60, cameraName: 200, microphoneName: 200 };
+const EDITABLE_SECTIONS = ['funny', 'cute', 'last']; // questionMix counts, 0 to MAX_PER_SECTION each
+const MAX_PER_SECTION = 100;
 
 const PAGES = { '/settings': '/settings.html' };
 
@@ -45,8 +46,10 @@ const MAX_CHUNK_BYTES = 64 * 1024 * 1024;
 const MAX_JSON_BYTES = 64 * 1024;
 const END_REASONS = new Set(['next', 'timer', 'escape']);
 const SESSION_STATUSES = new Set(['completed', 'ended-early']);
-// tagline is last so rows still line up with an index.csv started before it existed.
-const CSV_COLUMNS = ['session_folder', 'name', 'question_number', 'question', 'file', 'duration_sec', 'ended_by', 'recorded_at', 'tagline'];
+// New columns go at the end, so rows still line up with an index.csv started before they existed.
+const CSV_COLUMNS = ['session_folder', 'name', 'question_number', 'question', 'file', 'duration_sec', 'ended_by', 'recorded_at', 'tagline', 'section'];
+const DEFAULT_SECTION = 'funny'; // for questions above the first [section] line
+const LAST_SECTION = 'last'; // these always close the session
 
 const STATIC_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -77,27 +80,41 @@ function loadConfig() {
   return config;
 }
 
+// [[section, count], ...] from questionMix, ignoring counts that aren't whole numbers.
+function questionMix(cfg) {
+  return Object.entries(cfg.questionMix ?? {})
+    .map(([section, count]) => [section.toLowerCase(), Number.isInteger(count) && count > 0 ? count : 0]);
+}
+
 function clientSettings(cfg) {
   const {
-    birthdayName, questionsPerSession, maxSecondsPerQuestion, countdownSeconds, thankYouSeconds,
+    birthdayName, maxSecondsPerQuestion, countdownSeconds, thankYouSeconds,
     videoBitsPerSecond, cameraName, microphoneName,
   } = cfg;
+  const mix = questionMix(cfg);
+  const questionsPerSession = mix.reduce((total, [, count]) => total + count, 0);
   return {
-    birthdayName, questionsPerSession, maxSecondsPerQuestion, countdownSeconds, thankYouSeconds,
-    videoBitsPerSecond, cameraName, microphoneName,
+    birthdayName, questionMix: Object.fromEntries(mix), questionsPerSession, maxSecondsPerQuestion,
+    countdownSeconds, thankYouSeconds, videoBitsPerSecond, cameraName, microphoneName,
   };
 }
 
+// [{section, text}, ...] with {birthday} left in, so the birthday person's filter can see it.
 function parseQuestions(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'));
+  let section = DEFAULT_SECTION;
+  const questions = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const header = line.match(/^\[\s*(.+?)\s*\]$/);
+    if (header) section = header[1].toLowerCase();
+    else questions.push({ section, text: line });
+  }
+  return questions;
 }
 
-function readQuestions(birthdayName) {
-  return parseQuestions(fs.readFileSync(QUESTIONS_PATH, 'utf8'))
-    .map((question) => question.replaceAll('{birthday}', birthdayName));
+function readQuestions() {
+  return parseQuestions(fs.readFileSync(QUESTIONS_PATH, 'utf8'));
 }
 
 async function writeFileAtomic(target, text) {
@@ -122,11 +139,26 @@ function parseSettings(input) {
     settings[key] = value.trim();
   }
   if (!settings.birthdayName) throw new HttpError(400, 'birthdayName is required');
+  settings.questionMix = {};
+  for (const section of EDITABLE_SECTIONS) {
+    const value = input?.questionMix?.[section];
+    if (!Number.isInteger(value) || value < 0 || value > MAX_PER_SECTION) {
+      throw new HttpError(400, `questionMix.${section} must be a whole number from 0 to ${MAX_PER_SECTION}`);
+    }
+    settings.questionMix[section] = value;
+  }
+  if (Object.values(settings.questionMix).every((count) => count === 0)) {
+    throw new HttpError(400, 'Each guest needs at least one question');
+  }
   return settings;
 }
 
 async function saveSettings(changes) {
-  const updated = { ...loadConfig(), ...changes };
+  const current = loadConfig();
+  // The settings page only has [funny], [cute] and [last], so keep any other
+  // sections that were added to questionMix by hand.
+  const mix = { ...Object.fromEntries(questionMix(current)), ...changes.questionMix };
+  const updated = { ...current, ...changes, questionMix: mix };
   await writeFileAtomic(CONFIG_PATH, `${JSON.stringify(updated, null, 2)}\n`);
   config = updated;
   return updated;
@@ -139,6 +171,48 @@ function pickRandom(items, count) {
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   return pool.slice(0, count);
+}
+
+// True if anyone in the name box ("Sam & Jo", "Jo Murphy") is the birthday person.
+function includesBirthdayPerson(name, birthdayName) {
+  const target = slugify(birthdayName, 80);
+  if (!target) return false;
+  return name.split(/&|\+|,|\/|\band\b/i)
+    .map((person) => slugify(person, 80))
+    .some((person) => person === target || person.startsWith(`${target}-`));
+}
+
+// Follows questionMix: [last] questions close the session and the rest are
+// shuffled together. The birthday person never gets a question with {birthday}
+// in it. A section that runs short is topped up from the other sections'
+// leftovers (never from [last]), so every guest still gets the full count.
+function pickQuestions(cfg, name) {
+  const mix = questionMix(cfg);
+  let available = readQuestions();
+  for (const [section] of mix) {
+    if (!available.some((question) => question.section === section)) {
+      console.warn(`questions.txt has no [${section}] questions, but questionMix asks for them`);
+    }
+  }
+  if (includesBirthdayPerson(name, cfg.birthdayName)) {
+    available = available.filter((question) => !question.text.includes('{birthday}'));
+  }
+
+  const middle = [];
+  const last = [];
+  let shortfall = 0;
+  for (const [section, count] of mix) {
+    const chosen = pickRandom(available.filter((question) => question.section === section), count);
+    (section === LAST_SECTION ? last : middle).push(...chosen);
+    shortfall += count - chosen.length;
+  }
+  const leftovers = available.filter((question) => question.section !== LAST_SECTION && !middle.includes(question));
+  middle.push(...pickRandom(leftovers, shortfall));
+
+  return [...pickRandom(middle, middle.length), ...last].map(({ section, text }) => ({
+    section,
+    text: text.replaceAll('{birthday}', cfg.birthdayName),
+  }));
 }
 
 // --- Naming helpers ---
@@ -209,7 +283,7 @@ function appendToIndex(recordingsDir, session) {
     .filter((clip) => clip.file)
     .map((clip) => [
       session.dirName, session.data.name, clip.index, clip.question, `${session.dirName}/${clip.file}`,
-      clip.durationSec, clip.endedBy, clip.startedAt, session.data.tagline,
+      clip.durationSec, clip.endedBy, clip.startedAt, session.data.tagline, clip.section,
     ].map(csvField).join(','));
   if (rows.length === 0) return Promise.resolve();
 
@@ -303,7 +377,7 @@ async function handleApi(req, res, parts, url, recordingsDir) {
   // Changes use PUT, which a page on another site can only send after a CORS
   // preflight. This server never answers one, so only the booth's own pages can save.
 
-  // PUT /api/settings  { birthdayName, questionsPerSession, ..., cameraName, microphoneName }
+  // PUT /api/settings  { birthdayName, questionMix: {funny, cute, last}, ..., cameraName, microphoneName }
   if (req.method === 'PUT' && resource === 'settings' && parts.length === 1) {
     const saved = await saveSettings(parseSettings(await readJson(req)));
     console.log('Settings saved');
@@ -334,8 +408,9 @@ async function handleApi(req, res, parts, url, recordingsDir) {
     const tagline = String(rawTagline ?? '').trim().slice(0, 80);
 
     const cfg = loadConfig();
-    const questions = pickRandom(readQuestions(cfg.birthdayName), cfg.questionsPerSession);
-    if (questions.length === 0) throw new HttpError(500, 'questions.txt has no questions');
+    const picked = pickQuestions(cfg, name);
+    if (picked.length === 0) throw new HttpError(500, 'No questions to ask. Check questions.txt and questionMix in config.json');
+    const questions = picked.map((question) => question.text);
 
     const { dir, dirName } = await createSessionDir(recordingsDir, name);
     const session = {
@@ -350,8 +425,8 @@ async function handleApi(req, res, parts, url, recordingsDir) {
         endedAt: null,
         status: 'in-progress',
         mimeType: null,
-        clips: questions.map((question, i) => ({
-          index: i + 1, question, file: null, startedAt: null, endedAt: null, durationSec: null, endedBy: null,
+        clips: picked.map(({ section, text }, i) => ({
+          index: i + 1, question: text, section, file: null, startedAt: null, endedAt: null, durationSec: null, endedBy: null,
         })),
       },
     };

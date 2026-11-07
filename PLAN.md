@@ -39,22 +39,22 @@ confession-booth/
 
 The helper scripts are Node rather than bash, so the same scripts run on Windows.
 
-`config.json` defaults: `birthdayName: "the birthday person"` (fills `{birthday}` in questions), `questionsPerSession: 5`, `maxSecondsPerQuestion: 90`, `countdownSeconds: 3`, `thankYouSeconds: 10`, `videoBitsPerSecond: 2500000`, `cameraName`/`microphoneName: ""` (label substring to pick a device), `host: "127.0.0.1"`, `port: 3000`, `recordingsDir: "recordings"`.
+`config.json` defaults: `birthdayName: "the birthday person"` (fills `{birthday}` in questions), `questionMix: {funny: 3, cute: 1, last: 1}` (questions per guest from each section of `questions.txt`), `maxSecondsPerQuestion: 90`, `countdownSeconds: 3`, `thankYouSeconds: 10`, `videoBitsPerSecond: 2500000`, `cameraName`/`microphoneName: ""` (label substring to pick a device), `host: "127.0.0.1"`, `port: 3000`, `recordingsDir: "recordings"`.
 
 ## Server (`server.js`)
 - Static file serving from `public/` with a small MIME map.
 - `POST /api/session` `{name, tagline?}` re-reads `questions.txt` on every call, so questions can be edited mid-weekend without a restart. It then:
-  - samples `questionsPerSession` distinct questions at random (Fisher–Yates)
+  - picks questions per `questionMix` at random (Fisher–Yates): `[funny]` and `[cute]` shuffled together, then a `[last]` one (something nice about the birthday person). If a name in the name box matches `birthdayName`, questions with `{birthday}` are skipped, and short sections are topped up from the other `[funny]`/`[cute]` leftovers
   - creates `recordings/2026-10-11_14-23-05_sam-and-alex/`
   - writes the initial `session.json`
   - returns `{sessionId, questions, config}`
 - `POST /api/session/:id/clip/:n/chunk?seq=K` takes the raw request body (with the recorder's MIME type as `Content-Type`) and appends it to `NN-<question-slug>.<ext>`. `seq` makes retries safe: a chunk that's already written is acknowledged without being appended again, and a gap gets a 409.
 - All disk writes for a session go through one per-session promise queue, and `session.json` is written atomically (temp file + rename).
 - `POST /api/session/:id/clip/:n/end` `{startedAt, endedAt, endedBy: "next"|"timer"|"escape"}` updates the clip entry in `session.json`.
-- `POST /api/session/:id/end` `{status: "completed"|"ended-early"}` sets `endedAt` and `status`, and appends one row per clip to `recordings/index.csv` (session dir, name, question #, question, file, duration, endedBy, recorded at, tagline). This CSV gives one overview across all sessions for building "everyone answers question X" montages.
-- `GET /settings` serves the settings page. `PUT /api/settings` validates the guest-facing settings (ranges, lengths) and rewrites `config.json` atomically; `GET`/`PUT /api/questions` reads and writes the raw `questions.txt`. Writes use PUT, so a page on another site can't send them without a CORS preflight, which the server never grants.
+- `POST /api/session/:id/end` `{status: "completed"|"ended-early"}` sets `endedAt` and `status`, and appends one row per clip to `recordings/index.csv` (session dir, name, question #, question, file, duration, endedBy, recorded at, tagline, section). This CSV gives one overview across all sessions for building "everyone answers question X" montages.
+- `GET /settings` serves the settings page. `PUT /api/settings` validates the guest-facing settings (ranges, lengths, and the `funny`/`cute`/`last` counts in `questionMix`) and rewrites `config.json` atomically, keeping any other `questionMix` sections added by hand; `GET`/`PUT /api/questions` reads and writes the raw `questions.txt`. Writes use PUT, so a page on another site can't send them without a CORS preflight, which the server never grants.
 - **Safety:** active sessions live in an in-memory Map, and an unknown `sessionId` gets a 404. `:n` must be an integer in range. Names and questions are slugified (lowercase, `[a-z0-9-]`, max ~40 chars) before they're used in paths. Request bodies are size-capped per chunk.
-- `session.json` shape: `{name, tagline, startedAt, endedAt, status, mimeType, clips: [{index, question, file, startedAt, endedAt, durationSec, endedBy}]}`.
+- `session.json` shape: `{name, tagline, startedAt, endedAt, status, mimeType, clips: [{index, question, section, file, startedAt, endedAt, durationSec, endedBy}]}`.
 
 ## Frontend (`public/app.js`)
 **State machine:** `START → COUNTDOWN → QUESTION(i) … → THANKS → START`
@@ -88,7 +88,7 @@ The README covers disabling the OS screensaver/suspend and checking free disk sp
 
 ## Verification
 1. `npm start`, then smoke-test the API with curl: create a session, post a couple of dummy chunks, end the clip and the session. Check the folder layout, `session.json` and the `index.csv` row.
-2. Set `questionsPerSession: 2, maxSecondsPerQuestion: 8` in config. Then drive headless Chrome over CDP with `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` and run through:
+2. Set `questionMix: {funny: 1, last: 1}, maxSecondsPerQuestion: 8` in config. Then drive headless Chrome over CDP with `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` and run through:
    - one question ended with Next
    - one question ended by the timer
    - Escape on a second session

@@ -36,7 +36,7 @@ To run just the server, use `npm start` and open http://localhost:3000 in Chrome
 Open http://localhost:3000/settings, or press **Ctrl+,** on the booth's start screen. The shortcut is the way in from kiosk mode, where there's no address bar. The settings page has:
 
 - the camera and microphone, with a live preview and a level meter for the mic
-- the birthday person's name, the number of questions and the timings
+- the birthday person's name, how many funny, cute and closing questions each guest gets, and the timings
 - the video quality
 - the questions themselves
 
@@ -47,7 +47,7 @@ The page saves to `config.json` and `questions.txt`, which you can also edit by 
 | Setting | Default | What it does |
 |---|---|---|
 | `birthdayName` | `"the birthday person"` | Replaces `{birthday}` in the questions, and shows in the top corner as "Jo · The Weekend" |
-| `questionsPerSession` | `5` | Questions per guest, picked at random from `questions.txt` |
+| `questionMix` | `{"funny": 3, "cute": 1, "last": 1}` | How many questions each guest gets from each section of `questions.txt` (see below) |
 | `maxSecondsPerQuestion` | `90` | Time limit per question before it moves on by itself |
 | `countdownSeconds` | `3` | Countdown before the first question |
 | `thankYouSeconds` | `10` | How long the "That's a wrap" screen stays up |
@@ -56,7 +56,12 @@ The page saves to `config.json` and `questions.txt`, which you can also edit by 
 | `host` / `port` | `127.0.0.1` / `3000` | Where the server listens |
 | `recordingsDir` | `"recordings"` | Where clips are saved |
 
-Add questions to `questions.txt`, one per line. Lines starting with `#` are ignored.
+Add questions to `questions.txt`, one per line. Lines starting with `#` are ignored. The `[funny]`, `[cute]` and `[last]` lines split the questions into sections, and `questionMix` sets how many each guest gets from each:
+
+- `[funny]` and `[cute]` questions are picked at random and shuffled together. Questions above the first section line count as `[funny]`.
+- A `[last]` question always comes last. They're for saying something nice about the birthday person, to end each guest's session on a sincere note.
+- When the birthday person is in the booth, questions with `{birthday}` in them are skipped, so nobody asks them to describe themselves in three words. The booth spots them by name: a name (or one of the names in a group, like "Sam & Jo") that matches `birthdayName`, ignoring case and accents. A surname after it still counts.
+- If a section runs short, for example for the birthday person, the gaps are filled from the other `[funny]` and `[cute]` questions, so everyone still gets the full number. If a section in `questionMix` has no questions at all, the server logs a warning.
 
 Both files are re-read for every new guest, so you can change them while the booth is running. A new camera or mic takes effect when the booth reloads, which it does after every guest (or press F5). The exceptions are `host`, `port` and `recordingsDir`, which need a restart. They aren't on the settings page.
 
@@ -74,8 +79,8 @@ recordings/
     ...
 ```
 
-- **`session.json`** records the names and tagline, plus each question with its start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
-- **`index.csv`** opens in Excel or a spreadsheet app. Sort it by question to build "everyone answers X" montages. The `tagline` column has what each guest typed for their name tag, ready for lower thirds in the edit.
+- **`session.json`** records the names and tagline, plus each question with its section, start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
+- **`index.csv`** opens in Excel or a spreadsheet app. Sort it by question to build "everyone answers X" montages. The `tagline` column has what each guest typed for their name tag, ready for lower thirds in the edit. Filter the `section` column to `last` to find every guest's nice message for the end of the film.
 
 Video is uploaded in 2-second chunks while recording. If the browser or computer crashes, you lose at most the last couple of seconds.
 
