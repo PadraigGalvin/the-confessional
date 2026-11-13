@@ -1,6 +1,8 @@
 // Camera and microphone helpers shared by the booth and the settings page,
 // so the settings preview hears exactly what the booth records.
 
+import { STRINGS } from './strings.js';
+
 export function mediaConstraints(cameraId, microphoneId) {
   return {
     video: { deviceId: cameraId && { exact: cameraId }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
@@ -26,16 +28,17 @@ export function findDevice(devices, kind, name) {
     candidates.find((d) => d.label.toLowerCase().includes(name.toLowerCase()));
 }
 
-export function cameraErrorMessage(err) {
+// `text` is the guest's strings from strings.js. The settings page leaves it as English.
+export function cameraErrorMessage(err, text = STRINGS.en) {
   switch (err?.name) {
     case 'NotAllowedError':
-      return 'Camera access is blocked. Allow the camera and microphone for this page in the browser settings, then try again.';
+      return text.cameraBlocked;
     case 'NotFoundError':
     case 'OverconstrainedError':
-      return 'No camera or microphone was found. Plug them in, then try again.';
+      return text.cameraMissing;
     case 'NotReadableError':
-      return 'The camera is being used by another app. Close that app, then try again.';
+      return text.cameraBusy;
     default:
-      return `The camera couldn't start (${err?.message ?? 'unknown error'}). Try again.`;
+      return text.cameraFailed(err?.message ?? text.unknownError);
   }
 }

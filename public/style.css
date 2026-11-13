@@ -300,6 +300,39 @@ input.lower-tagline:focus { box-shadow: inset 0 calc(-0.3 * var(--u)) 0 rgb(255 
   transform-origin: left center;
 }
 
+/* --- Language switch: top right on the start screen, under the bug --- */
+
+.language-switch {
+  position: absolute;
+  top: calc(7.2 * var(--u));
+  right: calc(4.5 * var(--u));
+  display: flex;
+  gap: calc(0.2 * var(--u));
+  padding: calc(0.3 * var(--u));
+  border-radius: 999px;
+  background: rgb(8 6 12 / 0.55);
+  box-shadow: inset 0 0 0 calc(0.1 * var(--u)) rgb(255 255 255 / 0.3);
+}
+.language-switch button {
+  padding: calc(0.65 * var(--u)) calc(1.4 * var(--u));
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper-dim);
+  font-family: var(--font-text);
+  font-weight: 600;
+  font-size: calc(1.4 * var(--u));
+  line-height: 1;
+  cursor: pointer;
+}
+.language-switch button:hover { color: var(--paper); background: rgb(255 255 255 / 0.12); }
+.language-switch button[aria-pressed="true"] {
+  background: rgb(255 255 255 / 0.94);
+  color: var(--ink);
+  cursor: default;
+}
+.language-switch button:focus-visible { outline: calc(0.25 * var(--u)) solid var(--pink); outline-offset: calc(0.2 * var(--u)); }
+
 /* --- Countdown --- */
 
 .numeral {

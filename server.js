@@ -8,6 +8,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { fillBirthday, knownLanguages, typeset } from './public/strings.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -15,7 +16,10 @@ const CONFIG_PATH = path.join(ROOT, 'config.json');
 const QUESTIONS_PATH = path.join(ROOT, 'questions.txt');
 
 const DEFAULTS = {
-  birthdayName: 'the birthday person',
+  birthdayName: 'Mae',
+  // The languages guests can pick from, in the order of the columns in questions.txt.
+  // The first is the default. Each needs its text in public/strings.js.
+  languages: ['fr', 'en'],
   questionMix: { funny: 3, cute: 1, last: 1 }, // questions per guest from each [section] of questions.txt
   maxSecondsPerQuestion: 90,
   countdownSeconds: 3,
@@ -47,7 +51,10 @@ const MAX_JSON_BYTES = 64 * 1024;
 const END_REASONS = new Set(['next', 'timer', 'escape']);
 const SESSION_STATUSES = new Set(['completed', 'ended-early']);
 // New columns go at the end, so rows still line up with an index.csv started before they existed.
-const CSV_COLUMNS = ['session_folder', 'name', 'question_number', 'question', 'file', 'duration_sec', 'ended_by', 'recorded_at', 'tagline', 'section'];
+// question_all_languages is the whole line from questions.txt ("Français | English"),
+// so sorting by it puts every language's answers to the same question together.
+const CSV_COLUMNS = ['session_folder', 'name', 'question_number', 'question', 'file', 'duration_sec', 'ended_by', 'recorded_at', 'tagline', 'section', 'language', 'question_all_languages'];
+const LANGUAGE_SEPARATOR = '|'; // between the languages on a line of questions.txt
 const DEFAULT_SECTION = 'funny'; // for questions above the first [section] line
 const LAST_SECTION = 'last'; // these always close the session
 
@@ -86,6 +93,12 @@ function questionMix(cfg) {
     .map(([section, count]) => [section.toLowerCase(), Number.isInteger(count) && count > 0 ? count : 0]);
 }
 
+// The languages in config.json that public/strings.js has text for.
+function languagesOf(cfg) {
+  const known = knownLanguages(cfg.languages);
+  return known.length > 0 ? known : DEFAULTS.languages;
+}
+
 function clientSettings(cfg) {
   const {
     birthdayName, maxSecondsPerQuestion, countdownSeconds, thankYouSeconds,
@@ -94,27 +107,35 @@ function clientSettings(cfg) {
   const mix = questionMix(cfg);
   const questionsPerSession = mix.reduce((total, [, count]) => total + count, 0);
   return {
-    birthdayName, questionMix: Object.fromEntries(mix), questionsPerSession, maxSecondsPerQuestion,
+    birthdayName, languages: languagesOf(cfg), questionMix: Object.fromEntries(mix), questionsPerSession, maxSecondsPerQuestion,
     countdownSeconds, thankYouSeconds, videoBitsPerSecond, cameraName, microphoneName,
   };
 }
 
-// [{section, text}, ...] with {birthday} left in, so the birthday person's filter can see it.
-function parseQuestions(text) {
+// [{section, texts: {fr, en}}, ...], with {birthday} left in so the birthday person's
+// filter can see it. Each line holds the question in each language, separated by |,
+// in the order of `languages`. A language with nothing in its column doesn't get
+// that question, so a line with no | is only asked in the first language.
+function parseQuestions(text, languages) {
   let section = DEFAULT_SECTION;
   const questions = [];
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
     const header = line.match(/^\[\s*(.+?)\s*\]$/);
-    if (header) section = header[1].toLowerCase();
-    else questions.push({ section, text: line });
+    if (header) {
+      section = header[1].toLowerCase();
+      continue;
+    }
+    const columns = line.split(LANGUAGE_SEPARATOR).map((column) => column.trim());
+    const texts = Object.fromEntries(languages.map((code, i) => [code, columns[i]]).filter(([, column]) => column));
+    if (Object.keys(texts).length > 0) questions.push({ section, texts });
   }
   return questions;
 }
 
-function readQuestions() {
-  return parseQuestions(fs.readFileSync(QUESTIONS_PATH, 'utf8'));
+function readQuestions(languages) {
+  return parseQuestions(fs.readFileSync(QUESTIONS_PATH, 'utf8'), languages);
 }
 
 async function writeFileAtomic(target, text) {
@@ -183,19 +204,23 @@ function includesBirthdayPerson(name, birthdayName) {
 }
 
 // Follows questionMix: [last] questions close the session and the rest are
-// shuffled together. The birthday person never gets a question with {birthday}
-// in it. A section that runs short is topped up from the other sections'
-// leftovers (never from [last]), so every guest still gets the full count.
-function pickQuestions(cfg, name) {
+// shuffled together. Only questions with a version in the guest's language are
+// asked, and the birthday person never gets one with {birthday} in it. A section
+// that runs short is topped up from the other sections' leftovers (never from
+// [last]), so every guest still gets the full count.
+// Each question comes back as {section, text, byLanguage}: `text` in the guest's
+// language, and `byLanguage` with every version, for the film.
+function pickQuestions(cfg, name, language) {
+  const languages = languagesOf(cfg);
   const mix = questionMix(cfg);
-  let available = readQuestions();
+  let available = readQuestions(languages).filter((question) => question.texts[language]);
   for (const [section] of mix) {
     if (!available.some((question) => question.section === section)) {
-      console.warn(`questions.txt has no [${section}] questions, but questionMix asks for them`);
+      console.warn(`questions.txt has no [${section}] questions in "${language}", but questionMix asks for them`);
     }
   }
   if (includesBirthdayPerson(name, cfg.birthdayName)) {
-    available = available.filter((question) => !question.text.includes('{birthday}'));
+    available = available.filter((question) => !question.texts[language].includes('{birthday}'));
   }
 
   const middle = [];
@@ -209,10 +234,20 @@ function pickQuestions(cfg, name) {
   const leftovers = available.filter((question) => question.section !== LAST_SECTION && !middle.includes(question));
   middle.push(...pickRandom(leftovers, shortfall));
 
-  return [...pickRandom(middle, middle.length), ...last].map(({ section, text }) => ({
+  const fill = (text, code) => typeset(fillBirthday(text, cfg.birthdayName, code), code);
+  return [...pickRandom(middle, middle.length), ...last].map(({ section, texts }) => ({
     section,
-    text: text.replaceAll('{birthday}', cfg.birthdayName),
+    text: fill(texts[language], language),
+    byLanguage: Object.fromEntries(Object.entries(texts).map(([code, text]) => [code, fill(text, code)])),
   }));
+}
+
+// "Français | English" in the order of `languages`, leaving a column empty where a
+// language has no version, so each version stays in its own language's column.
+function allLanguages(byLanguage, languages) {
+  const columns = languages.map((code) => byLanguage[code] ?? '');
+  while (columns.length > 1 && !columns.at(-1)) columns.pop();
+  return columns.join(` ${LANGUAGE_SEPARATOR} `).trim();
 }
 
 // --- Naming helpers ---
@@ -284,6 +319,7 @@ function appendToIndex(recordingsDir, session) {
     .map((clip) => [
       session.dirName, session.data.name, clip.index, clip.question, `${session.dirName}/${clip.file}`,
       clip.durationSec, clip.endedBy, clip.startedAt, session.data.tagline, clip.section,
+      session.data.language, allLanguages(clip.questionByLanguage ?? {}, session.languages),
     ].map(csvField).join(','));
   if (rows.length === 0) return Promise.resolve();
 
@@ -391,7 +427,7 @@ async function handleApi(req, res, parts, url, recordingsDir) {
     if (req.method === 'PUT') {
       const { text } = await readJson(req);
       if (typeof text !== 'string') throw new HttpError(400, 'text is required');
-      if (parseQuestions(text).length === 0) throw new HttpError(400, 'Add at least one question');
+      if (parseQuestions(text, languagesOf(loadConfig())).length === 0) throw new HttpError(400, 'Add at least one question');
       await writeFileAtomic(QUESTIONS_PATH, text.endsWith('\n') ? text : `${text}\n`);
       console.log('Questions saved');
       return sendJson(res, 200, { ok: true });
@@ -400,15 +436,17 @@ async function handleApi(req, res, parts, url, recordingsDir) {
 
   if (req.method !== 'POST' || resource !== 'session') throw new HttpError(404, 'Not found');
 
-  // POST /api/session  { name, tagline? }
+  // POST /api/session  { name, tagline?, language? }
   if (parts.length === 1) {
-    const { name: rawName, tagline: rawTagline } = await readJson(req);
+    const { name: rawName, tagline: rawTagline, language: rawLanguage } = await readJson(req);
     const name = String(rawName ?? '').trim().slice(0, 80);
     if (!name) throw new HttpError(400, 'Name is required');
     const tagline = String(rawTagline ?? '').trim().slice(0, 80);
 
     const cfg = loadConfig();
-    const picked = pickQuestions(cfg, name);
+    const languages = languagesOf(cfg);
+    const language = languages.includes(rawLanguage) ? rawLanguage : languages[0];
+    const picked = pickQuestions(cfg, name, language);
     if (picked.length === 0) throw new HttpError(500, 'No questions to ask. Check questions.txt and questionMix in config.json');
     const questions = picked.map((question) => question.text);
 
@@ -418,22 +456,25 @@ async function handleApi(req, res, parts, url, recordingsDir) {
       dirName,
       chunkSeq: questions.map(() => 0),
       queue: Promise.resolve(),
+      languages, // the column order for index.csv's question_all_languages
       data: {
         name,
         tagline,
+        language,
         startedAt: new Date().toISOString(),
         endedAt: null,
         status: 'in-progress',
         mimeType: null,
-        clips: picked.map(({ section, text }, i) => ({
-          index: i + 1, question: text, section, file: null, startedAt: null, endedAt: null, durationSec: null, endedBy: null,
+        clips: picked.map(({ section, text, byLanguage }, i) => ({
+          index: i + 1, question: text, questionByLanguage: byLanguage, section,
+          file: null, startedAt: null, endedAt: null, durationSec: null, endedBy: null,
         })),
       },
     };
     const id = crypto.randomUUID();
     sessions.set(id, session);
     await enqueue(session, () => writeSessionFile(session));
-    console.log(`Session started: ${name} -> ${dirName}`);
+    console.log(`Session started: ${name} (${language}) -> ${dirName}`);
     return sendJson(res, 201, { sessionId: id, questions, settings: clientSettings(cfg) });
   }
 

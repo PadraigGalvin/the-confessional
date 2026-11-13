@@ -5,7 +5,7 @@ This is a single-machine "confession booth" for a birthday weekend. Guests enter
 
 The booth must run on either Linux or Windows. Dev machine: Node 24, Google Chrome 155, webcam at `/dev/video0`, ffmpeg 8.
 
-**Decisions made with the user:** one clip per question; a Next button plus a max timer per question; N random questions per session drawn from a pool; keyboard and mouse input.
+**Decisions made with the user:** one clip per question; a Next button plus a max timer per question; N random questions per session drawn from a pool; keyboard and mouse input. Guests are mostly French speakers, but some only speak English, so the booth is bilingual: French by default, with an English switch on the start screen, informal *tu*, and a film with its text in both languages.
 
 **Why web and not native:** we considered Electron, Tauri, Python+OpenCV, PySide6/Qt Multimedia, GStreamer, an ffmpeg-driven capture, and OBS+websocket. Native options would mainly give better footage: a constant frame rate and better encoding. The post-weekend ffmpeg conversion covers that. The UI, which is most of this project, is far cheaper in HTML/CSS. Tauri was ruled out because WebKitGTK's camera support on Linux is unreliable.
 
@@ -25,7 +25,8 @@ confession-booth/
     index.html          # all screens as <section>s, toggled via [hidden]
     theme.css           # bundled fonts + colour tokens, shared by both pages
     style.css           # reality TV talking head: full-screen preview, question strip, name-tag lower third, REC bug, timer line
-    app.js              # state machine + recorder + chunk upload queue
+    app.js              # state machine + recorder + chunk upload queue + language switch
+    strings.js          # every piece of guest-facing and film text, in French and English (shared with server and compile)
     media.js            # getUserMedia constraints, device matching, camera error messages (shared)
     settings.html/.css/.js  # /settings: edit config.json + questions.txt, camera preview, mic level meter
     fonts/              # Barlow + Barlow Condensed (bundled so the booth works offline)
@@ -43,22 +44,29 @@ confession-booth/
 
 The helper scripts are Node rather than bash, so the same scripts run on Windows.
 
-`config.json` defaults: `birthdayName: "the birthday person"` (fills `{birthday}` in questions), `questionMix: {funny: 3, cute: 1, last: 1}` (questions per guest from each section of `questions.txt`), `maxSecondsPerQuestion: 90`, `countdownSeconds: 3`, `thankYouSeconds: 10`, `videoBitsPerSecond: 2500000`, `cameraName`/`microphoneName: ""` (label substring to pick a device), `host: "127.0.0.1"`, `port: 3000`, `recordingsDir: "recordings"`.
+`config.json` defaults: `birthdayName: "the birthday person"` (fills `{birthday}` in questions), `languages: ["fr", "en"]` (the languages guests can pick, in `questions.txt` column order; the first is the default and names the show), `questionMix: {funny: 3, cute: 1, last: 1}` (questions per guest from each section of `questions.txt`), `maxSecondsPerQuestion: 90`, `countdownSeconds: 3`, `thankYouSeconds: 10`, `videoBitsPerSecond: 2500000`, `cameraName`/`microphoneName: ""` (label substring to pick a device), `host: "127.0.0.1"`, `port: 3000`, `recordingsDir: "recordings"`.
 
 ## Server (`server.js`)
 - Static file serving from `public/` with a small MIME map.
-- `POST /api/session` `{name, tagline?}` re-reads `questions.txt` on every call, so questions can be edited mid-weekend without a restart. It then:
-  - picks questions per `questionMix` at random (Fisher–Yates): `[funny]` and `[cute]` shuffled together, then a `[last]` one (something nice about the birthday person). If a name in the name box matches `birthdayName`, questions with `{birthday}` are skipped, and short sections are topped up from the other `[funny]`/`[cute]` leftovers
+- `POST /api/session` `{name, tagline?, language?}` re-reads `questions.txt` on every call, so questions can be edited mid-weekend without a restart. An unknown or missing `language` falls back to the first in `languages`. It then:
+  - picks questions per `questionMix` at random (Fisher–Yates), from the ones with a version in the guest's language: `[funny]` and `[cute]` shuffled together, then a `[last]` one (something nice about the birthday person). If a name in the name box matches `birthdayName`, questions with `{birthday}` are skipped, and short sections are topped up from the other `[funny]`/`[cute]` leftovers
+  - fills in `{birthday}` (with French elision: "d'Anne", "qu'Anne") and adds French typography (a narrow no-break space before `? ! : ;` and inside « ») to French questions
   - creates `recordings/2026-10-11_14-23-05_sam-and-alex/`
   - writes the initial `session.json`
-  - returns `{sessionId, questions, config}`
+  - returns `{sessionId, questions, settings}`, with the questions in the guest's language
 - `POST /api/session/:id/clip/:n/chunk?seq=K` takes the raw request body (with the recorder's MIME type as `Content-Type`) and appends it to `NN-<question-slug>.<ext>`. `seq` makes retries safe: a chunk that's already written is acknowledged without being appended again, and a gap gets a 409.
 - All disk writes for a session go through one per-session promise queue, and `session.json` is written atomically (temp file + rename).
 - `POST /api/session/:id/clip/:n/end` `{startedAt, endedAt, endedBy: "next"|"timer"|"escape"}` updates the clip entry in `session.json`.
-- `POST /api/session/:id/end` `{status: "completed"|"ended-early"}` sets `endedAt` and `status`, and appends one row per clip to `recordings/index.csv` (session dir, name, question #, question, file, duration, endedBy, recorded at, tagline, section). This CSV gives one overview across all sessions for building "everyone answers question X" montages.
+- `POST /api/session/:id/end` `{status: "completed"|"ended-early"}` sets `endedAt` and `status`, and appends one row per clip to `recordings/index.csv` (session dir, name, question #, question, file, duration, endedBy, recorded at, tagline, section, language, question_all_languages). `question_all_languages` is the whole "Français | English" line, so French and English answers to the same question sort together. This CSV gives one overview across all sessions for building "everyone answers question X" montages.
 - `GET /settings` serves the settings page. `PUT /api/settings` validates the guest-facing settings (ranges, lengths, and the `funny`/`cute`/`last` counts in `questionMix`) and rewrites `config.json` atomically, keeping any other `questionMix` sections added by hand; `GET`/`PUT /api/questions` reads and writes the raw `questions.txt`. Writes use PUT, so a page on another site can't send them without a CORS preflight, which the server never grants.
 - **Safety:** active sessions live in an in-memory Map, and an unknown `sessionId` gets a 404. `:n` must be an integer in range. Names and questions are slugified (lowercase, `[a-z0-9-]`, max ~40 chars) before they're used in paths. Request bodies are size-capped per chunk.
-- `session.json` shape: `{name, tagline, startedAt, endedAt, status, mimeType, clips: [{index, question, section, file, startedAt, endedAt, durationSec, endedBy}]}`.
+- `session.json` shape: `{name, tagline, language, startedAt, endedAt, status, mimeType, clips: [{index, question, questionByLanguage: {fr, en}, section, file, startedAt, endedAt, durationSec, endedBy}]}`.
+
+## Languages
+- **Questions:** each line of `questions.txt` is `Français | English`, columns in `languages` order. A language with an empty column doesn't get that question, so a line with no `|` is French-only. The English can be a substitute rather than a translation where wordplay doesn't carry over. `parseQuestions` is mirrored by `countQuestions` in `settings.js`, which reports how many questions each language has.
+- **Booth text:** `public/strings.js` holds `{fr, en}` dictionaries. Text with numbers is a function, because French plurals differ (0 and 1 are singular). French strings go through `typeset()` automatically. Static elements in `index.html` carry `data-text` / `data-text-placeholder` / `data-text-aria-label` keys, and `setLanguage()` fills them and sets `<html lang>`.
+- **Switch:** one button per language, top right on the start screen, each named in its own language. The choice is just a variable: the page reloads after every guest, so each guest starts in the default language. The buttons cancel `mousedown` so the cursor stays in the name tag.
+- **Show name:** always in the first language ("Jo · Le Week-end"), in the booth and the film, since it's the show's name.
 
 ## Frontend (`public/app.js`)
 **State machine:** `START → COUNTDOWN → QUESTION(i) … → THANKS → START`
@@ -93,11 +101,12 @@ The README covers disabling the OS screensaver/suspend and checking free disk sp
 ## Compilation film (`scripts/compile.js`)
 Goal: at the end of the weekend, the film is one spreadsheet edit and one command away.
 
+- **Languages:** the film's fixed text is in every language, joined with " · " ("On a demandé · We asked"). A `card` (and `outroTitle`/`outroNote`) holds a version per language separated by `|`: the first is drawn big and the rest underneath. New rows' cards default to `question_all_languages`, so consecutive French and English answers to the same question share one card. Dates use the first language's locale.
 - **Running order:** `compilation/running-order.csv` is made from `index.csv` on the first run. On later runs, newly recorded clips are appended and everything already there is left alone. The file is only rewritten when clips are added, and a write failure (the file open in Excel) is a warning, not an error. Editable columns are `order` (any numbers, decimals to slot in between), `start`/`end` (seconds or m:ss), `name`, `tagline` and `card`, followed by read-only info columns. Clips are matched by `file`, columns by header name, so the easter-egg branch's extra `section` column is carried along. Rows with only a `card` are chapter headings. Parsing copes with how spreadsheet apps re-save CSV: semicolons, decimal commas, a BOM, CRLF line endings and unquoted fields.
 - **Film structure:** opening titles (the show name over a mosaic of guests' faces, with the title sliding in), then each chosen clip in order. A question card plays whenever the `card` text changes. Each answer has the bug and the lower-third name tag, which fades out after `lowerThirdSeconds` and is skipped when the same guest answers again straight after. The film ends with a booth-style wrap freeze frame ("Happy birthday, Jo.") and a "Starring" credits card. Chapters are written for every card.
-- **Graphics:** `graphics.html` links `public/style.css` and reuses the booth's markup and ids, so the name tag and wrap screen are pixel-identical to the booth. Headless Chrome renders each graphic at 1920×1080 (`--u` = 1vw scales exactly) over a transparent background. It's driven over CDP with Node's built-in WebSocket (Node 22+), so there are no dependencies. Puppeteer was rejected because it needs npm. ffmpeg `drawtext`/ASS were rejected because matching the look and text wrapping would be fiddly.
+- **Graphics:** `graphics.html` links `public/theme.css` and `public/style.css` and reuses the booth's markup and ids, so the name tag and wrap screen are pixel-identical to the booth. Headless Chrome renders each graphic at 1920×1080 (`--u` = 1vw scales exactly) over a transparent background. It's driven over CDP with Node's built-in WebSocket (Node 22+), so there are no dependencies. Puppeteer was rejected because it needs npm. ffmpeg `drawtext`/ASS were rejected because matching the look and text wrapping would be fiddly.
 - **Rendering:** each piece (card, answer, title) is its own MP4 with identical encoding settings: 1080p30, libx264 veryfast CRF 18, AAC 48 kHz stereo. Pieces are joined with the concat demuxer, copying the video and re-encoding the audio. Answers are read straight from `recordings/` (VFR is fixed by `fps=30` + `aresample=async=1`), trimmed and fitted to 16:9. Audio is levelled with two-pass `loudnorm` to -16 LUFS, because test clips differed by 16 dB. Graphics are held with the `loop` filter rather than `-loop 1`, which re-decodes the PNG every frame.
-- **Cache:** pieces, stills and graphics are named by a hash of their inputs (file size and mtime, trim, text, `graphics.html` + `style.css`, encoder settings, `RENDER_VERSION`). A re-run after reordering only re-joins the pieces, which takes seconds.
+- **Cache:** pieces, stills and graphics are named by a hash of their inputs (file size and mtime, trim, text, `graphics.html` + `theme.css` + `style.css`, encoder settings, `RENDER_VERSION`). A re-run after reordering only re-joins the pieces, which takes seconds.
 - **Optional assets** (in `config.json` → `compilation`): `introVideo` replaces the generated titles; `introMusic` plays under the titles, and `outroMusic` plays under the wrap and credits.
 
 ## Verification

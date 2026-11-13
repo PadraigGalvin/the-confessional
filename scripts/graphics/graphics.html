@@ -63,6 +63,35 @@
       text-shadow: 0 calc(0.2 * var(--u)) calc(1 * var(--u)) rgb(0 0 0 / 0.5);
     }
 
+    /* The question in the other languages, under the big one. */
+    .card-translation {
+      margin: 0;
+      max-width: calc(70 * var(--u));
+      padding-left: calc(1.2 * var(--u));
+      border-left: calc(0.35 * var(--u)) solid var(--pink);
+      font-weight: 600;
+      font-size: calc(2.4 * var(--u));
+      line-height: 1.25;
+      color: var(--paper-dim);
+      white-space: pre-line;
+      text-wrap: balance;
+      text-shadow: 0 calc(0.2 * var(--u)) calc(1 * var(--u)) rgb(0 0 0 / 0.5);
+    }
+
+    /* The ending's title in the other languages, and its note, one line per language. */
+    .wrap-translation {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: calc(3.2 * var(--u));
+      line-height: 1.05;
+      text-transform: uppercase;
+      white-space: pre-line;
+    }
+    .wrap-note { white-space: pre-line; }
+    .card-translation:empty,
+    .wrap-translation:empty { display: none; }
+
     /* Highlighted words, like the guest's name on the booth's wrap screen. */
     .card-question mark,
     .intro-title mark {
@@ -159,6 +188,7 @@
       <div class="card">
         <p class="label" id="card-label"></p>
         <h1 class="card-question" id="card-question"></h1>
+        <p class="card-translation" id="card-translation"></p>
       </div>
     </section>
 
@@ -173,6 +203,7 @@
     <section class="screen" id="screen-thanks" hidden>
       <div class="wrap">
         <h1 class="wrap-title" id="thanks-title"></h1>
+        <p class="wrap-translation" id="thanks-translation"></p>
         <p class="wrap-note" id="thanks-note"></p>
       </div>
     </section>
@@ -268,13 +299,16 @@
         $('lower-tagline').textContent = tagline ?? '';
       },
 
-      card({ label, question, highlight, still, showTitle }) {
+      card({ label, question, translations = [], highlight, still, showTitle }) {
         showOnly('card-layer', 'bug', 'screen-card');
         $('card-layer').classList.toggle('card-still-fallback', !still);
         $('show-title').textContent = showTitle;
         $('card-label').textContent = label;
         setText($('card-question'), question, highlight);
-        fit($('card-question'), { size: 6.2, min: 3, maxWidth: 80, maxHeight: 40 });
+        $('card-translation').textContent = translations.join('\n');
+        // Leave room for the translations under the question.
+        const room = 40 - (translations.length > 0 ? $('card-translation').offsetHeight / unit() + 2 : 0);
+        fit($('card-question'), { size: 6.2, min: 3, maxWidth: 80, maxHeight: room });
         return [loadImage($('card-still'), still)];
       },
 
@@ -293,10 +327,11 @@
       },
 
       // The booth's "That's a wrap" screen, over a freeze frame of the last answer.
-      wrap({ title, highlight, note, still }) {
+      wrap({ title, highlight, translations = [], note, still }) {
         showOnly('freeze-frame', 'shade-bottom', 'screen-thanks');
         booth.dataset.state = 'thanks';
         setText($('thanks-title'), title, highlight);
+        $('thanks-translation').textContent = translations.join('\n');
         $('thanks-note').textContent = note ?? '';
         return [loadImage($('freeze-frame'), still)];
       },

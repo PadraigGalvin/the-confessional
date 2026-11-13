@@ -2,13 +2,16 @@
 //
 //   npm run compile              The first run writes compilation/running-order.csv.
 //                                Number the clips you want in its "order" column, then
-//   npm run compile              renders the film to compilation/<name>-the-weekend.mp4.
+//   npm run compile              renders the film to compilation/<name>-le-week-end.mp4.
 //   npm run compile -- --all     Uses every clip in spreadsheet order (for a test run).
 //
 // The film opens with a title sequence over a wall of guests' faces. Each answer gets
 // the guest's name tag and the show title, burned in exactly as the booth showed them,
 // and a question card plays whenever the question changes. It ends on a "Happy
-// birthday" freeze frame and credits listing everyone in the film. Graphics are drawn
+// birthday" freeze frame and credits listing everyone in the film. The film's own text
+// is in every language in config.json ("On a demandé · We asked"), and question cards
+// show the question in each language; the answers stay in whatever language they were
+// recorded in. Graphics are drawn
 // with the booth's own stylesheet (see scripts/graphics/graphics.html), and every
 // answer's volume is levelled. Each piece is rendered once and cached in
 // compilation/cache, so after changing the order or a trim only the changed pieces
@@ -21,6 +24,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { STRINGS, fillBirthday, knownLanguages, typeset } from '../public/strings.js';
 import { formatCsv, parseCsv } from './lib/csv.js';
 import { GRAPHICS_PAGE, openGraphics } from './lib/graphics.js';
 
@@ -37,10 +41,6 @@ const FPS = 30;
 // Bump to re-render every cached piece after changing how they're made.
 const RENDER_VERSION = 1;
 
-const SHOW_NAME = 'The Weekend'; // the bug in public/app.js reads "<birthdayName> · The Weekend"
-const INTRO_LABEL = 'Confessions from the booth';
-const CARD_LABEL = 'We asked';
-const CREDITS_LABEL = 'Starring';
 const INTRO_SECONDS = 6;
 const WRAP_SECONDS = 4.5;
 const MAX_MOSAIC_STILLS = 24;
@@ -48,20 +48,24 @@ const LOUDNESS = 'I=-16:TP=-1.5:LRA=11';
 
 const DEFAULTS = {
   birthdayName: 'the birthday person',
+  languages: ['fr', 'en'],
   recordingsDir: 'recordings',
 };
 const COMPILATION_DEFAULTS = {
   introVideo: '',
   introMusic: '',
   outroMusic: '',
-  outroTitle: 'Happy birthday,\n{birthday}.',
-  outroNote: 'Love from everyone who stepped into the booth',
+  outroTitle: 'Joyeux anniversaire,\n{birthday}. | Happy birthday,\n{birthday}.',
+  outroNote: "Avec l'amour de tous ceux qui sont passés par le confessionnal | Love from everyone who stepped into the booth",
   lowerThirdSeconds: 6,
   normalizeAudio: true,
 };
 
 const EDIT_COLUMNS = ['order', 'start', 'end', 'name', 'tagline', 'card'];
-const INFO_COLUMNS = ['question', 'duration_sec', 'section', 'recorded_at', 'file'];
+const INFO_COLUMNS = ['question', 'language', 'duration_sec', 'section', 'recorded_at', 'file'];
+// Info columns that index.csv files from older versions of the booth don't have.
+const NEWER_INFO_COLUMNS = new Set(['section', 'language']);
+const LANGUAGE_SEPARATOR = '|'; // between the languages in a card, as in questions.txt
 
 class UserError extends Error {}
 
@@ -104,12 +108,12 @@ function parseSeconds(value, column, line) {
   return parts.reduce((total, part) => total * 60 + part, 0);
 }
 
-function dateRange(timestamps) {
+function dateRange(timestamps, locale) {
   const dates = timestamps.map((t) => new Date(t)).filter((d) => !Number.isNaN(d.getTime())).sort((a, b) => a - b);
   if (dates.length === 0) return '';
   const first = dates[0];
   const last = dates.at(-1);
-  const format = (date, options) => date.toLocaleDateString('en-GB', options);
+  const format = (date, options) => date.toLocaleDateString(locale, options);
   const full = { day: 'numeric', month: 'long', year: 'numeric' };
   if (first.toDateString() === last.toDateString()) return format(first, full);
   if (first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear()) {
@@ -268,9 +272,10 @@ function updateRunningOrder(index) {
       ...Object.fromEntries(INFO_COLUMNS.map((column) => [column, row[column] ?? ''])),
       name: row.name,
       tagline: row.tagline,
-      card: row.question,
+      // Every language's version, so the card shows them all.
+      card: row.question_all_languages || row.question,
     }));
-  const wanted = [...EDIT_COLUMNS, ...INFO_COLUMNS.filter((column) => column !== 'section' || index.columns.includes('section'))];
+  const wanted = [...EDIT_COLUMNS, ...INFO_COLUMNS.filter((column) => !NEWER_INFO_COLUMNS.has(column) || index.columns.includes(column))];
   const columns = [...sheet.columns, ...wanted.filter((column) => !sheet.columns.includes(column))];
   const rows = [...sheet.rows, ...added];
 
@@ -297,7 +302,8 @@ Next:
      leave a clip out. Decimals like 2.5 slot a clip in between.
   3. Optional: trim with "start" and "end" (seconds into the clip, like 4 or 12.5),
      fix the "name" and "tagline", or change the question card in "card". Clear
-     "card" for no card. Consecutive clips with the same card share one.
+     "card" for no card. Consecutive clips with the same card share one. A card
+     has each language's version separated by |, like the questions.
   4. Save it as CSV and run npm run compile again.
 
 Or run npm run compile -- --all for a quick test film of all ${clipCount} clips.`);
@@ -325,7 +331,17 @@ function chooseRows(rows, useAll) {
 // Its cache key covers everything that affects the result.
 function planFilm(rows, config, recordingsDir, allTimestamps) {
   const { birthdayName, compilation: settings } = config;
-  const showTitle = `${birthdayName} · ${SHOW_NAME}`;
+  const known = knownLanguages(config.languages);
+  const languages = known.length > 0 ? known : DEFAULTS.languages;
+  const text = STRINGS[languages[0]]; // the show is named in the first language, as in the booth
+  // The film's fixed text in every language, like "On a demandé · We asked".
+  const inEveryLanguage = (key) => [...new Set(languages.map((code) => STRINGS[code][key]))].join(' · ');
+  // A card or config text with a version per language, "Français | English", as a
+  // list of the versions that aren't blank.
+  const versions = (value) => value.split(LANGUAGE_SEPARATOR)
+    .map((part, i) => typeset(fillBirthday(part.trim(), birthdayName, languages[i]), languages[i]))
+    .filter(Boolean);
+  const showTitle = `${birthdayName} · ${text.showName}`;
   const graphicsSource = hash(['graphics.html', ...['theme.css', 'style.css'].map((file) => path.join('..', '..', 'public', file))]
     .map((file) => fs.readFileSync(path.resolve(path.dirname(GRAPHICS_PAGE), file), 'utf8')).join('\n'));
 
@@ -379,20 +395,28 @@ function planFilm(rows, config, recordingsDir, allTimestamps) {
     const input = resolveMedia(settings.introVideo, 'introVideo');
     const { duration, hasAudio } = probe(input);
     const job = { input, start: 0, duration: toFrames(duration), hasAudio, overlays: [], levelAudio: false };
-    add({ kind: 'intro', label: 'Opening titles', chapter: 'Opening titles', duration: job.duration, cacheKey: { job, input: fileIdentity(input) }, render: (out) => renderVideo(job, out) });
+    add({ kind: 'intro', label: 'Opening titles', chapter: inEveryLanguage('filmChapterIntro'), duration: job.duration, cacheKey: { job, input: fileIdentity(input) }, render: (out) => renderVideo(job, out) });
   } else {
     const music = settings.introMusic && { file: resolveMedia(settings.introMusic, 'introMusic'), offset: 0, fadeOut: 1.5 };
     const job = {
       layers: [
         { png: graphic({ type: 'intro-background', stills: faces }) },
-        { png: graphic({ type: 'intro-title', label: INTRO_LABEL, title: `${birthdayName}\n${SHOW_NAME}`, highlight: SHOW_NAME, note: dateRange(allTimestamps) }) },
+        {
+          png: graphic({
+            type: 'intro-title',
+            label: inEveryLanguage('filmIntroLabel'),
+            title: `${birthdayName}\n${text.showName}`,
+            highlight: text.showName,
+            note: dateRange(allTimestamps, text.locale),
+          }),
+        },
       ],
       duration: INTRO_SECONDS,
       fadeIn: 0.6,
       fadeOut: 0.5,
       music,
     };
-    add({ kind: 'intro', label: 'Opening titles', chapter: 'Opening titles', duration: job.duration, cacheKey: { job, music: music && fileIdentity(music.file) }, render: (out) => renderStill(job, out) });
+    add({ kind: 'intro', label: 'Opening titles', chapter: inEveryLanguage('filmChapterIntro'), duration: job.duration, cacheKey: { job, music: music && fileIdentity(music.file) }, render: (out) => renderStill(job, out) });
   }
 
   const bug = graphic({ type: 'bug', showTitle });
@@ -400,17 +424,20 @@ function planFilm(rows, config, recordingsDir, allTimestamps) {
   let lastPerson = null;
   for (const row of rows) {
     const answer = answerFor.get(row);
-    const card = row.card.trim();
-    if (card && (card !== lastCard || !answer)) {
-      const words = card.split(/\s+/).length;
+    // The first version is the big one, with the others underneath.
+    const [question, ...translations] = versions(row.card);
+    const card = [question, ...translations].join('\n');
+    if (question && (card !== lastCard || !answer)) {
+      // Long enough to read the longest version, plus a moment to glance at the others.
+      const words = Math.max(...[question, ...translations].map((version) => version.split(/\s+/).length));
       const background = answer ? still(answer.input, answer.start + Math.min(1.5, answer.duration / 3)) : null;
       // A card on a row with no clip is a heading, like "And now… the toasts", not a question.
-      const label = answer ? CARD_LABEL : '';
+      const label = answer ? inEveryLanguage('filmCardLabel') : '';
       const job = {
-        layers: [{ png: graphic({ type: 'card', label, question: card, highlight: birthdayName, still: background, showTitle }) }],
-        duration: toFrames(clamp(2 + words * 0.3, 3, 6.5)),
+        layers: [{ png: graphic({ type: 'card', label, question, translations, highlight: birthdayName, still: background, showTitle }) }],
+        duration: toFrames(clamp(2 + words * 0.3 + (translations.length > 0 ? 1 : 0), 3, 7.5)),
       };
-      add({ kind: 'card', label: `Card: ${card}`, chapter: card, duration: job.duration, cacheKey: job, render: (out) => renderStill(job, out) });
+      add({ kind: 'card', label: `Card: ${question}`, chapter: question, duration: job.duration, cacheKey: job, render: (out) => renderStill(job, out) });
       lastCard = card;
     }
     if (!answer) continue;
@@ -440,7 +467,8 @@ function planFilm(rows, config, recordingsDir, allTimestamps) {
   const names = [...people.values()].map((answer) => answer.row.name.trim());
   const credits = names.length > 0 ? toFrames(clamp(4 + names.length * 0.12, 5, 9)) : 0;
   const outroMusic = settings.outroMusic && resolveMedia(settings.outroMusic, 'outroMusic');
-  const outroTitle = settings.outroTitle.replaceAll('{birthday}', birthdayName);
+  // The title in the first language, with the others on one line each underneath.
+  const [outroTitle = '', ...outroTranslations] = versions(settings.outroTitle);
   const wrap = {
     layers: [{
       png: graphic({
@@ -448,7 +476,8 @@ function planFilm(rows, config, recordingsDir, allTimestamps) {
         title: outroTitle,
         // Like the booth's "That's a wrap, Sam.", the full stop goes in the highlight too.
         highlight: outroTitle.includes(`${birthdayName}.`) ? `${birthdayName}.` : birthdayName,
-        note: settings.outroNote,
+        translations: outroTranslations.map((version) => version.replace(/\s*\n\s*/g, ' ')),
+        note: versions(settings.outroNote).join('\n'),
         still: last ? still(last.input, last.start + last.duration - 0.1) : null,
       }),
     }],
@@ -457,16 +486,16 @@ function planFilm(rows, config, recordingsDir, allTimestamps) {
     fadeOut: credits ? 0.3 : 1,
     music: outroMusic && { file: outroMusic, offset: 0, fadeIn: 0.5, fadeOut: credits ? 0 : 1 },
   };
-  add({ kind: 'wrap', label: 'Wrap', chapter: 'Happy birthday', duration: wrap.duration, cacheKey: { wrap, music: outroMusic && fileIdentity(outroMusic) }, render: (out) => renderStill(wrap, out) });
+  add({ kind: 'wrap', label: 'Wrap', chapter: inEveryLanguage('filmChapterWrap'), duration: wrap.duration, cacheKey: { wrap, music: outroMusic && fileIdentity(outroMusic) }, render: (out) => renderStill(wrap, out) });
 
   if (credits) {
     const job = {
-      layers: [{ png: graphic({ type: 'credits', label: CREDITS_LABEL, names, stills: faces }) }],
+      layers: [{ png: graphic({ type: 'credits', label: inEveryLanguage('filmCreditsLabel'), names, stills: faces }) }],
       duration: credits,
       fadeOut: 1.5,
       music: outroMusic && { file: outroMusic, offset: WRAP_SECONDS, fadeOut: 2 },
     };
-    add({ kind: 'credits', label: 'Credits', chapter: 'Credits', duration: job.duration, cacheKey: { job, music: outroMusic && fileIdentity(outroMusic) }, render: (out) => renderStill(job, out) });
+    add({ kind: 'credits', label: 'Credits', chapter: inEveryLanguage('filmChapterCredits'), duration: job.duration, cacheKey: { job, music: outroMusic && fileIdentity(outroMusic) }, render: (out) => renderStill(job, out) });
   }
 
   return { segments, stills: [...stills.values()], graphics: [...graphics.values()], showTitle };

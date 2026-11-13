@@ -1,6 +1,6 @@
 # Confession booth
 
-A webcam confession booth for a birthday weekend, styled like a reality TV talking head. Guests type their names, then answer a few random questions on camera. They see themselves full screen with a name tag in the lower third, and each question appears at the top, just under the webcam. Each answer is saved as its own video clip, with a record of who answered what, ready to cut into a compilation afterwards.
+A webcam confession booth for a birthday weekend, styled like a reality TV talking head. Guests type their names, then answer a few random questions on camera, in French or English. They see themselves full screen with a name tag in the lower third, and each question appears at the top, just under the webcam. Each answer is saved as its own video clip, with a record of who answered what, ready to cut into a compilation afterwards.
 
 It runs on one computer (Linux or Windows): a small Node server writes the recordings to disk, and Chrome shows the booth full-screen.
 
@@ -24,10 +24,11 @@ To run just the server, use `npm start` and open http://localhost:3000 in Chrome
 
 ## How guests use it
 
-1. Type a name (or a few names) and press Enter. Then add a one-line tagline for the name tag, such as "Jo's oldest friend, allegedly", or leave it blank. Press Enter again or click **Roll camera**.
-2. After a 3-2-1 countdown, the first question appears and recording starts.
-3. Click **Next question**, or press Space, Enter or →. Each question also moves on by itself after `maxSecondsPerQuestion`.
-4. After the last question, a "That's a wrap" screen holds a freeze frame of the guest's last second, then the booth resets for the next guest.
+1. The booth starts in French. English speakers click **English** in the top corner; the next guest starts in French again.
+2. Type a name (or a few names) and press Enter. Then add a one-line tagline for the name tag, such as "Jo's oldest friend, allegedly", or leave it blank. Press Enter again or click **Moteur** (**Roll camera** in English).
+3. After a 3-2-1 countdown, the first question appears in their language and recording starts.
+4. Click **Question suivante** (**Next question**), or press Space, Enter or →. Each question also moves on by itself after `maxSecondsPerQuestion`.
+5. After the last question, a "C'est dans la boîte" ("That's a wrap") screen holds a freeze frame of the guest's last second, then the booth resets for the next guest.
 
 **Esc** ends the session early, which is handy if someone starts by accident.
 
@@ -46,7 +47,8 @@ The page saves to `config.json` and `questions.txt`, which you can also edit by 
 
 | Setting | Default | What it does |
 |---|---|---|
-| `birthdayName` | `"the birthday person"` | Replaces `{birthday}` in the questions, and shows in the top corner as "Jo · The Weekend" |
+| `birthdayName` | `"the birthday person"` | Replaces `{birthday}` in the questions, and shows in the top corner as "Jo · Le Week-end" |
+| `languages` | `["fr", "en"]` | The languages guests can pick, in the order of the columns in `questions.txt`. The first is the default and names the show. Use `["fr"]` for a French-only booth, with no language switch |
 | `questionMix` | `{"funny": 3, "cute": 1, "last": 1}` | How many questions each guest gets from each section of `questions.txt` (see below) |
 | `maxSecondsPerQuestion` | `90` | Time limit per question before it moves on by itself |
 | `countdownSeconds` | `3` | Countdown before the first question |
@@ -56,14 +58,26 @@ The page saves to `config.json` and `questions.txt`, which you can also edit by 
 | `host` / `port` | `127.0.0.1` / `3000` | Where the server listens |
 | `recordingsDir` | `"recordings"` | Where clips are saved |
 
-Add questions to `questions.txt`, one per line. Lines starting with `#` are ignored. The `[funny]`, `[cute]` and `[last]` lines split the questions into sections, and `questionMix` sets how many each guest gets from each:
+Add questions to `questions.txt`, one per line, in French then English with a `|` between them:
+
+```
+Quel est le pire cadeau que tu aies jamais offert ? | What's the worst gift you've ever given anyone?
+```
+
+- Guests only get questions in the language they picked. A line with no `|` is only asked in French, and a line starting with `|` only in English. The settings page says how many questions each language has.
+- The English doesn't have to be a translation. Where a joke or pun doesn't carry over, put a different question that works in English.
+- Write the French for *tu*, with an ordinary space before `?`, `!`, `:` and `;`. The booth swaps in the narrow no-break space French uses, so a `?` never wraps onto a line of its own.
+- If the birthday name starts with a vowel, "de {birthday}" and "que {birthday}" become "d'Anne" and "qu'Anne" by themselves.
+- The booth's own text, like the buttons, the start screen and the film's titles, is in `public/strings.js`, with French and English side by side.
+
+Lines starting with `#` are ignored. The `[funny]`, `[cute]` and `[last]` lines split the questions into sections, and `questionMix` sets how many each guest gets from each:
 
 - `[funny]` and `[cute]` questions are picked at random and shuffled together. Questions above the first section line count as `[funny]`.
 - A `[last]` question always comes last. They're for saying something nice about the birthday person, to end each guest's session on a sincere note.
 - When the birthday person is in the booth, questions with `{birthday}` in them are skipped, so nobody asks them to describe themselves in three words. The booth spots them by name: a name (or one of the names in a group, like "Sam & Jo") that matches `birthdayName`, ignoring case and accents. A surname after it still counts.
 - If a section runs short, for example for the birthday person, the gaps are filled from the other `[funny]` and `[cute]` questions, so everyone still gets the full number. If a section in `questionMix` has no questions at all, the server logs a warning.
 
-Both files are re-read for every new guest, so you can change them while the booth is running. A new camera or mic takes effect when the booth reloads, which it does after every guest (or press F5). The exceptions are `host`, `port` and `recordingsDir`, which need a restart. They aren't on the settings page.
+Both files are re-read for every new guest, so you can change them while the booth is running. A new camera or mic takes effect when the booth reloads, which it does after every guest (or press F5). The exceptions are `host`, `port` and `recordingsDir`, which need a restart. They and `languages` aren't on the settings page.
 
 Anyone who can open the booth's address can change its settings. With the default `host` of `127.0.0.1`, that's only this computer.
 
@@ -79,8 +93,8 @@ recordings/
     ...
 ```
 
-- **`session.json`** records the names and tagline, plus each question with its section, start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
-- **`index.csv`** opens in Excel or a spreadsheet app. Sort it by question to build "everyone answers X" montages. The `tagline` column has what each guest typed for their name tag, ready for lower thirds in the edit. Filter the `section` column to `last` to find every guest's nice message for the end of the film.
+- **`session.json`** records the names, tagline and language, plus each question as asked and in every language, with its section, start and end times, the duration, and how it ended: `next`, `timer` or `escape`.
+- **`index.csv`** opens in Excel or a spreadsheet app. The `question` column has the question as the guest was asked it, and `question_all_languages` has the whole line, French and English. Sort by `question_all_languages` to build "everyone answers X" montages, with French and English answers to the same question together. The `language` column says which language each guest picked. The `tagline` column has what each guest typed for their name tag, ready for lower thirds in the edit. Filter the `section` column to `last` to find every guest's nice message for the end of the film.
 
 Video is uploaded in 2-second chunks while recording. If the browser or computer crashes, you lose at most the last couple of seconds.
 
@@ -88,17 +102,17 @@ Video is uploaded in 2-second chunks while recording. If the browser or computer
 
 The film is made in one command, from a spreadsheet where you pick the clips. It looks like an episode of the show:
 
-- Opening titles: "Jo · The Weekend" over a wall of guests' faces.
-- A question card whenever the question changes.
+- Opening titles: "Jo · Le Week-end" over a wall of guests' faces.
+- A question card whenever the question changes, with the question in French and, underneath, in English. The film's other text is in both languages too, like "On a demandé · We asked". Answers stay in whatever language they were recorded in.
 - Each answer with the guest's name tag and the show title burned in, exactly as the booth showed them.
-- A "Happy birthday, Jo." freeze frame, then credits listing everyone in the film.
+- A "Joyeux anniversaire, Jo." freeze frame with "Happy birthday, Jo." under it, then credits listing everyone in the film.
 
 Every answer's volume is levelled, so quiet and loud guests sound alike. The film has chapters for each question, so you can skip ahead in VLC.
 
 1. Run `npm run compile`. The first time, it creates `compilation/running-order.csv` with one row per clip.
 2. Open it in a spreadsheet app, and watch the clips in `recordings/`. The `file` column says which is which.
 3. Number the clips you want in the `order` column: 1, 2, 3… Clips without a number are left out. Use decimals, like 2.5, to slot a clip in between without renumbering.
-4. Save it as CSV, then run `npm run compile` again. The film is saved as `compilation/jo-the-weekend.mp4`.
+4. Save it as CSV, then run `npm run compile` again. The film is saved as `compilation/jo-le-week-end.mp4`.
 
 The other columns you can change:
 
@@ -106,9 +120,9 @@ The other columns you can change:
 |---|---|
 | `start` / `end` | Trim the clip, in seconds from its start, like `3` or `12.5` (or `1:05`). Most answers start with a few seconds of the guest reading the question, so trimming `start` makes the film much snappier. |
 | `name` / `tagline` | What the name tag says. Fix typos or capitals here. |
-| `card` | The question card shown before the clip. Clear it for no card. Consecutive clips with the same card share one, so to build an "everyone answers X" montage, number those clips one after the other. You can also put different words on the card than the guest was asked… |
+| `card` | The question card shown before the clip, in each language with `\|` between them, as in `questions.txt`. The first is shown big and the others underneath. Clear it for no card. Consecutive clips with the same card share one, so to build an "everyone answers X" montage, number those clips one after the other. French and English answers to the same question have the same card. You can also put different words on the card than the guest was asked… |
 
-To add a chapter heading, like "And now… the toasts", add a row with just an `order` and a `card`. You can also add your own videos, like phone footage from the weekend, by adding a row with a `file` path (relative to `recordings/`, or a full path).
+To add a chapter heading, like "Et maintenant… les toasts | And now… the toasts", add a row with just an `order` and a `card`. You can also add your own videos, like phone footage from the weekend, by adding a row with a `file` path (relative to `recordings/`, or a full path).
 
 Run `npm run compile` as often as you like. Each piece is rendered once and kept in `compilation/cache/`, so after you change the order or a trim, only the changed pieces are redone. Clips recorded after the spreadsheet was made are added to the bottom, and nothing you've typed is lost. To skip a clip, leave its `order` empty rather than deleting the row, because deleted rows come back at the bottom. Delete `compilation/cache/` to free up disk space once the film is done.
 
@@ -121,8 +135,8 @@ Settings, in the `compilation` section of `config.json`:
 | `introMusic` | `""` | An audio file (path relative to this folder) to play under the opening titles |
 | `outroMusic` | `""` | An audio file to play under the ending and credits |
 | `introVideo` | `""` | A ready-made intro video to use instead of the generated titles |
-| `outroTitle` | `"Happy birthday,\n{birthday}."` | The ending's title. `\n` starts a new line |
-| `outroNote` | `"Love from everyone who stepped into the booth"` | The line under it |
+| `outroTitle` | `"Joyeux anniversaire,\n{birthday}. \| Happy birthday,\n{birthday}."` | The ending's title, in each language with `\|` between them. The first is big and the others go underneath. `\n` starts a new line |
+| `outroNote` | `"Avec l'amour de tous ceux… \| Love from everyone…"` | The lines under it, one per language |
 | `lowerThirdSeconds` | `6` | How long the name tag stays up at the start of each answer |
 | `normalizeAudio` | `true` | Level every answer's volume |
 

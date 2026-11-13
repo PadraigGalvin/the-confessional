@@ -3,6 +3,7 @@
 // small chunks so a crash loses at most a couple of seconds.
 
 import { cameraErrorMessage, findDevice, mediaConstraints } from './media.js';
+import { STRINGS } from './strings.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,6 +31,8 @@ let settings = null;
 let stream = null;
 let mimeType = '';
 let session = null;
+let language = 'en'; // the guest's language, picked on the start screen
+let text = STRINGS.en; // everything on screen, in that language
 
 // --- Small helpers ---
 
@@ -54,7 +57,43 @@ async function postJson(url, body) {
 function formatSeconds(total) {
   const minutes = Math.floor(total / 60);
   const seconds = String(total % 60).padStart(2, '0');
-  return `${minutes}:${seconds} left`;
+  return text.timeLeft(`${minutes}:${seconds}`);
+}
+
+// --- Language ---
+
+// Puts the whole page in one language: every data-text element, plus the start
+// screen's text that depends on the settings.
+function setLanguage(code) {
+  language = STRINGS[code] ? code : 'en';
+  text = STRINGS[language];
+  document.documentElement.lang = language;
+  for (const el of document.querySelectorAll('[data-text]')) el.textContent = text[el.dataset.text];
+  for (const el of document.querySelectorAll('[data-text-placeholder]')) el.placeholder = text[el.dataset.textPlaceholder];
+  for (const el of document.querySelectorAll('[data-text-aria-label]')) el.setAttribute('aria-label', text[el.dataset.textAriaLabel]);
+  for (const button of $('language-switch').children) button.setAttribute('aria-pressed', String(button.lang === language));
+  if (settings) {
+    $('tagline').placeholder = text.taglinePlaceholder(settings.birthdayName);
+    $('start-note').textContent = text.startNote(settings.questionsPerSession, settings.maxSecondsPerQuestion);
+  }
+}
+
+// One button per language, each named in its own language. The page reloads after
+// every guest, so the next guest starts in the first language again.
+function buildLanguageSwitch(languages) {
+  const box = $('language-switch');
+  box.setAttribute('aria-label', languages.map((code) => STRINGS[code].languageLabel).join(' · '));
+  box.replaceChildren(...languages.map((code) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.lang = code;
+    button.textContent = STRINGS[code].languageName;
+    // Keep the cursor in the name tag, so the guest can carry on typing.
+    button.addEventListener('mousedown', (event) => event.preventDefault());
+    button.addEventListener('click', () => setLanguage(code));
+    return button;
+  }));
+  box.hidden = languages.length < 2;
 }
 
 // --- Camera & screen ---
@@ -84,7 +123,7 @@ async function startCamera() {
 
   $('preview').srcObject = stream;
   for (const track of stream.getTracks()) {
-    track.addEventListener('ended', () => fail('The camera or microphone was disconnected. Plug it back in, then try again.'));
+    track.addEventListener('ended', () => fail(text.errorDisconnected));
   }
 }
 
@@ -153,7 +192,7 @@ function startClip(sessionId, clipNumber) {
 // --- Session flow ---
 
 async function beginSession(name, tagline) {
-  const data = await postJson('/api/session', { name, tagline });
+  const data = await postJson('/api/session', { name, tagline, language });
   settings = data.settings;
   session = {
     id: data.sessionId,
@@ -194,9 +233,9 @@ function showQuestion(index) {
   const { questions } = session;
   session.index = index;
   session.questionShownAt = performance.now();
-  $('question-progress').textContent = `Question ${index + 1} of ${questions.length}`;
+  $('question-progress').textContent = text.questionProgress(index + 1, questions.length);
   $('question-text').textContent = questions[index];
-  $('next-label').textContent = index === questions.length - 1 ? 'Finish' : 'Next question';
+  $('next-label').textContent = index === questions.length - 1 ? text.finish : text.nextQuestion;
   show('question');
   $('rec-badge').hidden = false;
   session.clip = startClip(session.id, index + 1);
@@ -269,11 +308,11 @@ async function endSession(status) {
   freezeFrame();
   const name = document.createElement('mark');
   name.textContent = `${session.name}.`;
-  $('thanks-title').replaceChildren("That's a wrap,", document.createElement('br'), name);
+  $('thanks-title').replaceChildren(text.thanksTitle, document.createElement('br'), name);
   const answered = session.index + 1;
   show('thanks');
   for (let left = settings.thankYouSeconds; left > 0; left--) {
-    $('thanks-note').textContent = `${answered} answer${answered === 1 ? '' : 's'} saved · next guest in ${left}`;
+    $('thanks-note').textContent = text.thanksNote(answered, left);
     await sleep(1000);
   }
   await finalized;
@@ -311,7 +350,7 @@ $('start-form').addEventListener('submit', async (event) => {
     await beginSession(name, $('tagline').value.trim());
   } catch (err) {
     console.error('Could not start session:', err);
-    fail("The booth couldn't start a session. Check the booth server is running, then try again.");
+    fail(text.errorNoSession);
   }
 });
 
@@ -340,31 +379,31 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('visibilitychange', keepScreenAwake);
 
 async function init() {
+  setLanguage(document.documentElement.lang);
   keepScreenAwake();
   try {
     settings = await fetch('/api/settings').then((res) => res.json());
   } catch {
-    return fail("Can't reach the booth server. Check it's running, then try again.");
+    return fail(text.errorNoServer);
   }
+  // The first language in config.json is the default, and names the show.
+  const languages = settings.languages.filter((code) => STRINGS[code]);
+  if (languages.length === 0) languages.push('en');
+  buildLanguageSwitch(languages);
+  setLanguage(languages[0]);
 
   mimeType = MIME_CANDIDATES.find((type) => window.MediaRecorder?.isTypeSupported(type)) ?? '';
-  if (!mimeType) return fail('This browser cannot record video. Open the booth in Google Chrome or Microsoft Edge.');
+  if (!mimeType) return fail(text.errorNoRecorder);
   console.log(`Recording as ${mimeType}`);
 
   try {
     await startCamera();
   } catch (err) {
     console.error('getUserMedia failed:', err);
-    return fail(cameraErrorMessage(err));
+    return fail(cameraErrorMessage(err, text));
   }
 
-  $('show-title').textContent = `${settings.birthdayName} · The Weekend`;
-  $('tagline').placeholder = `Your tagline, like “${settings.birthdayName}'s oldest friend, allegedly”`;
-
-  const { questionsPerSession: count, maxSecondsPerQuestion: seconds } = settings;
-  $('start-note').textContent =
-    `You'll get ${count} question${count === 1 ? '' : 's'}, with up to ${seconds} seconds for each. ` +
-    'Everything you say is recorded for the birthday film.';
+  $('show-title').textContent = `${settings.birthdayName} · ${STRINGS[languages[0]].showName}`;
   show('start');
   $('name').focus();
 }

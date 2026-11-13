@@ -2,6 +2,7 @@
 // with a live preview of the chosen camera and a level meter for the mic.
 
 import { cameraErrorMessage, findDevice, mediaConstraints } from './media.js';
+import { STRINGS } from './strings.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -12,6 +13,7 @@ const AUDIO_BITS_PER_SECOND = 128_000; // what the booth records audio at, for t
 // Chrome on Windows lists these aliases next to the real devices; "System default" covers them.
 const ALIAS_DEVICE_IDS = new Set(['default', 'communications']);
 const METER_FLOOR_DB = -60;
+const LANGUAGE_SEPARATOR = '|'; // between the languages on a line of questions.txt, as on the server
 
 const form = $('settings-form');
 let stream = null;
@@ -19,6 +21,7 @@ let previewAttempt = 0;
 let audioContext = null;
 let meter = null; // { source, frame }
 let dirty = false;
+let languages = ['en']; // from config.json: the columns of questions.txt, the first being the default
 
 // --- Small helpers ---
 
@@ -45,7 +48,20 @@ function showPreviewMessage(message) {
 
 // --- The form ---
 
+const languageName = (code) => STRINGS[code]?.languageNameInEnglish ?? code;
+
+// "French and English", "French, English and German"
+function listNames(names) {
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join('');
+}
+
 function fillForm(settings, questions) {
+  languages = settings.languages;
+  if (languages.length > 1) {
+    const names = languages.map(languageName);
+    $('languages-hint').textContent = `Write each question as ${names.join(' | ')}. ` +
+      `Guests pick their language and only get questions in it, so a line with no | is only asked in ${names[0]}. `;
+  }
   $('birthdayName').value = settings.birthdayName;
   for (const key of NUMBER_FIELDS) $(key).value = settings[key];
   for (const section of MIX_SECTIONS) $(`questionMix-${section}`).value = settings.questionMix[section] ?? 0;
@@ -76,31 +92,50 @@ function readMix() {
   return Object.fromEntries(MIX_SECTIONS.map((section) => [section, $(`questionMix-${section}`).valueAsNumber]));
 }
 
-// { section: count } the way the server reads questions.txt: blank lines,
-// # comments and the [section] lines themselves don't count.
+// Counts questions the way the server reads questions.txt: blank lines, # comments
+// and the [section] lines themselves don't count. Returns { section: count } and
+// { language: count }, for the questions with a version in each language.
 function countQuestions(text) {
   let section = DEFAULT_SECTION;
   const counts = {};
+  const byLanguage = Object.fromEntries(languages.map((code) => [code, 0]));
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
     const header = line.match(/^\[\s*(.+?)\s*\]$/);
-    if (header) section = header[1].toLowerCase();
-    else counts[section] = (counts[section] ?? 0) + 1;
+    if (header) {
+      section = header[1].toLowerCase();
+      continue;
+    }
+    const columns = line.split(LANGUAGE_SEPARATOR).map((column) => column.trim());
+    const present = languages.filter((code, i) => columns[i]);
+    if (present.length === 0) continue;
+    counts[section] = (counts[section] ?? 0) + 1;
+    for (const code of present) byLanguage[code] += 1;
   }
-  return counts;
+  return { counts, byLanguage };
+}
+
+// " Only 30 are in English." or " Every one is in French and English."
+function describeLanguages(byLanguage, total) {
+  if (languages.length < 2) return '';
+  const short = languages.filter((code) => byLanguage[code] < total);
+  if (short.length === 0) return ` Every one is in ${listNames(languages.map(languageName))}.`;
+  return short.map((code) => {
+    const count = byLanguage[code];
+    return count === 0 ? ` None are in ${languageName(code)} yet.` : ` Only ${count} ${count === 1 ? 'is' : 'are'} in ${languageName(code)}.`;
+  }).join('');
 }
 
 // "3 [funny], 1 [cute] and 1 [last]", leaving out zeros.
 function describeCounts(counts) {
-  const parts = Object.entries(counts)
+  return listNames(Object.entries(counts)
     .filter(([, count]) => count > 0)
-    .map(([section, count]) => `${count} [${section}]`);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts.join('');
+    .map(([section, count]) => `${count} [${section}]`));
 }
 
 function updateQuestionCount() {
-  const counts = countQuestions($('questions').value);
+  const { counts, byLanguage } = countQuestions($('questions').value);
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
   const mix = readMix();
   const perGuest = Object.values(mix).reduce((sum, count) => sum + (Number.isFinite(count) ? count : 0), 0);
@@ -109,6 +144,7 @@ function updateQuestionCount() {
   $('question-count').textContent = total === 0
     ? 'No questions yet.'
     : `${total} question${total === 1 ? '' : 's'}: ${describeCounts(counts)}.` +
+      describeLanguages(byLanguage, total) +
       (perGuest ? ` Each guest gets ${describeCounts(mix)}, picked at random.` : '');
 }
 
