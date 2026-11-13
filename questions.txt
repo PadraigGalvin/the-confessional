@@ -2,6 +2,16 @@
 # {birthday} is replaced with "birthdayName" from config.json.
 # This file is re-read for every new session, so you can edit it while the booth is running.
 #
+# Each line has the question in French, then | and the question in English, in the order of
+# "languages" in config.json. Guests pick their language on the start screen, and only get
+# questions in that language. A line with no | is only asked in French; start a line with |
+# to ask it only in English. The English doesn't have to be a translation: where a joke or
+# a pun doesn't carry over, put a different question that works in English.
+#
+# Write the French for "tu". Put an ordinary space before ? ! : ; and the booth swaps in
+# the right French space. "de {birthday}" and "que {birthday}" become "d'" and "qu'" by
+# themselves if the name starts with a vowel.
+#
 # The [funny], [cute] and [last] lines split the questions into sections.
 # "questionMix" in config.json sets how many each guest gets from each section.
 # The [funny] and [cute] questions are shuffled together, and the [last] one always comes last.
@@ -9,41 +19,49 @@
 # and the gaps are filled from the other [funny] and [cute] questions.
 
 [funny]
-What's the most embarrassing thing you've ever seen {birthday} do?
-Confess: what's a secret you've never told {birthday}?
-Give {birthday} one piece of terrible advice for the year ahead.
-Tell us a story about {birthday} that they'd rather we didn't hear.
-Do your best impression of {birthday}.
-If you and {birthday} robbed a bank, who drives the getaway car and who gets caught first?
-What will {birthday} be doing in ten years?
-What's the worst gift you've ever given anyone?
-What's the most rebellious thing you did as a teenager?
-What's the pettiest grudge you're still holding?
-What's a lie you've told this weekend?
-Confess something you did this weekend that nobody saw.
-Who at this party would survive longest in a zombie apocalypse? Who goes first?
-What's the worst date you've ever been on?
-What's the most trouble you've ever been in?
-What's your most irrational fear?
-What's your guilty-pleasure TV show?
-What's the most money you've wasted on something stupid?
-If this weekend were a film, what would it be called?
-What's your hidden talent? Show us.
-Which celebrity would play you in the film of your life?
+Avoue : quel secret tu n'as jamais dit à {birthday} ? | Confess: what's a secret you've never told {birthday}?
+Donne à {birthday} un très mauvais conseil pour l'année qui vient. | Give {birthday} one piece of terrible advice for the next year.
+Donne à {birthday} ton meilleur conseil pour l'année qui vient. | Give {birthday} your best advice for the next year.
+Si {birthday} et toi braquiez une banque, qui conduirait la voiture et qui se ferait prendre en premier ? | If you and {birthday} robbed a bank, who drives the getaway car and who gets caught first?
+Où et comment imagines-tu {birthday} dans dix ans ? | What will {birthday} be doing in ten years?
+Quel est le truc le plus rebelle que tu aies fait ado ? | What's the most rebellious thing you did as a teenager?
+Qui, à cette fête, survivrait le plus longtemps à une apocalypse zombie ? Et qui y passerait en premier ? | Who at this party would survive longest in a zombie apocalypse? Who goes first?
+Quelle est ta peur la plus irrationnelle ? | What's your most irrational fear?
+Si ce week-end était un film, quel serait son titre ? | If this weekend were a film, what would it be called?
+C'est quoi, ton talent caché ? Montre-nous. | What's your hidden talent? Show us.
+Quelle est la plus grosse bêtise que vous ayez faite ensemble, {birthday} et toi ? | What's the worst thing you and {birthday} have ever got up to together?
+Quel est le pire défaut de {birthday} ? | What's {birthday}'s worst flaw?
+Si {birthday} était un film, quel serait son titre ? | If {birthday} were a film, what would it be called?
+Si tu devais commettre un crime avec {birthday}, quel serait-il ? | If you had to commit a crime with {birthday}, what would it be?
+Si {birthday} gagnait 10 millions d'euros, quelle serait sa première dépense ? | If {birthday} won €10 million, what would they buy first?
+Si tu gagnais 10 millions d'euros, est-ce que tu le dirais à {birthday} ? Et qu'est-ce que tu en ferais ? | If you won €10 million, would you tell {birthday}? And what would you do with it?
+Si {birthday} devait se réincarner en animal, ce serait lequel ? | If {birthday} were reincarnated as an animal, which one would it be?
+Propose un titre pour la prochaine chanson de {birthday}. | Come up with a title for {birthday}'s next song.
+
+# Suggested by others
+Imagine : tu te réveilles au milieu de la jungle, et tu vois {birthday} qui se réveille pas loin. Tu te dis quoi ? | You wake up in the middle of the jungle, and {birthday} is waking up nearby. What's your first thought?
+Si {birthday} était une peluche ou un jouet, elle ressemblerait à quoi ? | If {birthday} were a teddy or a toy, what would it look like?
+Si tu pouvais entendre les pensées de Sushi, le chat de {birthday}, ça ressemblerait à quoi ? | If you could read the mind of Sushi, {birthday}'s cat, what would you hear?
+Quel est ton premier souvenir de fête avec {birthday} ? | What's your earliest memory of partying with {birthday}?
+Raconte ta soirée la plus folle avec {birthday}. | Tell us about your wildest night out with {birthday}.
 
 [cute]
-How do you know {birthday}, and what was your first impression?
-Describe {birthday} in three words. Now justify them.
-Which song should play every time {birthday} walks into a room?
-Sing happy birthday to {birthday}, in any style you like.
-What's your favourite memory with {birthday}?
-What's the nicest thing {birthday} has ever done for you?
-What's been the best moment of this weekend so far?
-What's the nicest thing a stranger has ever done for you?
-What's a small thing that always makes your day?
+Quand et où as-tu rencontré {birthday}, et quelle a été ta première impression ? | When and where did you first meet {birthday}, and what was your first impression?
+Décris {birthday} en trois mots. | Describe {birthday} in three words.
+Chante « Joyeux anniversaire » à {birthday}, dans le style que tu veux. | Sing happy birthday to {birthday}, in any style you like.
+Quel est ton meilleur souvenir avec {birthday} ? | What's your favourite memory with {birthday}?
+Quelle est la plus belle chose que {birthday} ait faite pour toi ? | What's the nicest thing {birthday} has ever done for you?
+Quel a été le meilleur moment du week-end jusqu'ici ? | What's been the best moment of this weekend so far?
+Quel petit truc suffit à illuminer ta journée ? | What's a small thing that always makes your day?
+
+# Suggested by others
+Quel est l'un de tes plus anciens souvenirs avec {birthday} ? Et l'un des plus récents ? | What's one of your earliest memories with {birthday}? And one of your most recent?
+Tu peux nous chanter un petit bout d'une chanson qui fait un clin d'œil à {birthday} ? | Can you sing us a few lines of a song that reminds you of {birthday}?
+Si tu pouvais voyager dans le passé, quel conseil donnerais-tu à la {birthday} de huit ans ? | If you could travel back in time, what advice would you give eight-year-old {birthday}?
+Où aimerais-tu partir en vacances avec {birthday} ? | Where would you love to go on holiday with {birthday}?
 
 [last]
-What's the best thing about {birthday}? Be sincere, just this once.
-Leave a message for {birthday} to watch on their next birthday.
-Look into the camera and tell {birthday} what they mean to you.
-Give {birthday} a birthday toast. Glass optional.
+Qu'est-ce que tu préfères chez {birthday} ? Sois sincère, pour une fois. | What's the best thing about {birthday}? Be sincere, just this once.
+Regarde la caméra et dis à {birthday} ce qu'elle représente pour toi. | Look into the camera and tell {birthday} what they mean to you.
+En quoi {birthday} a changé depuis que tu la connais ? | How has {birthday} changed since you first met?
+Selon toi, qu'est-ce que {birthday} préfère chez toi ? | What do you think {birthday} likes best about you?
