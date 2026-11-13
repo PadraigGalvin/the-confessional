@@ -326,7 +326,7 @@ function chooseRows(rows, useAll) {
 function planFilm(rows, config, recordingsDir, allTimestamps) {
   const { birthdayName, compilation: settings } = config;
   const showTitle = `${birthdayName} · ${SHOW_NAME}`;
-  const graphicsSource = hash(['graphics.html', path.join('..', '..', 'public', 'style.css')]
+  const graphicsSource = hash(['graphics.html', ...['theme.css', 'style.css'].map((file) => path.join('..', '..', 'public', file))]
     .map((file) => fs.readFileSync(path.resolve(path.dirname(GRAPHICS_PAGE), file), 'utf8')).join('\n'));
 
   const stills = new Map();
